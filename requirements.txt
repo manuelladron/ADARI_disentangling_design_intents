@@ -3,3 +3,4 @@ torchvision
 pickle
 numpy
 Pillow
+notebook
