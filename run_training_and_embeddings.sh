@@ -1,3 +1,7 @@
 #!/bin/bash
 
-jupyter nbconvert --to notebook --inplace --execute F20_MMML_Train_TwoWayNet_Workflow.ipynb
+jupyter nbconvert --to script F20_MMML_Train_TwoWayNet_Workflow.ipynb
+
+python3 F20_MMML_Train_TwoWayNet_Workflow.py
+rm F20_MMML_Train_TwoWayNet_Workflow.py
+
