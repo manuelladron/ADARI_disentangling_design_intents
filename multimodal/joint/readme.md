@@ -1,0 +1,3 @@
+- Ryan Kiros et al., Unifying Visual Semantic Embedding
+- Lin Ma et al., Multimodal Convolutional Neural Networks for Matching Image and Sentence
+- A. Frome et al., DeViSE: A Deep Visual-Semantic Embedding Model
