@@ -11,14 +11,14 @@ Our project gravitates around the Ambiguos Descriptionsand Art Images—ADARI—
 To address the issue of disentangling design intents in thecontext of creative practice,  we use the Ambiguous De-scriptions and Art Images—ADARI—dataset.   The self-annotated ADARI dataset contains a total of 33,230 samplesof contemporary creative works represented by 264,028 raw sentences provided by the original creators and byart curators that describe 241,982 images.  This datasetwas assembled by collecting articles that include editorialdescriptions along with associated images of the creativevisual work.  ADARI is an organized dataset divided intoseven categories: architecture, art, design, fashion, furniture,product design and technology. ADARI is the first datasetof pairs of images and descriptions that, besides containingobjective information of the elements in the images such as wooden chair or black table, focuses on descriptions that correspond to design intents, such as minimal, elegant and sleek looking chair. Table 1 shows the raw counts of samples, images per domain, and sentences and adjectives fromcreatorsandcuratorsper domain. Table 2 shows that givena visual workpiece, original creators use a more ambiguouslanguage than curators in their descriptions, that it, normalized results of a human classification of ADARI labels intoqualitative or quantitative attributes.  Over 500 adjectivesper source (cretaor, curators and both) and per domain (furniture, fashion, wearable technology) have been annotated.Unsurprisingly, creators express their design intents whilecurators tend to describe the work objectively. Both sourcesof language are used as annotations for the labels of thedataset.
 
 <div  align="center">   
-  <img width="28%"   src="./media/figure1_array.png">
+  <img width="28%"   src="./media/adari.png">
   <p style="font-size:10px"> Figure 1.ADARI dataset. Rows: architecture (top), furniture (mid-dle), fashion (bottom) sub-domains in ADARI. Columns, from left to right: images with label <em>interesting, simple, organic, different,iconic, minimalist.</em> </p>
 </div>
 
 To simplify the complexity of the ADARI datset, and unlessotherwise stated, we use the ADARI Furniture domain inall  experiments.   This  contains  over  17,000  images  andapproximately a total of 60,000 adjectives.
 
 <div  align="center">   
-  <img width="28%"   src="./media/ADARI_raw_statistics.png">
+  <img width="100%"   src="./media/ADARI_raw_statistics.png">
 </div>
 
 
@@ -29,7 +29,7 @@ The main technical challenge of this project is to disentanglesuch attributes fr
 
 
 <div  align="center">   
-  <img width="28%"   src="./media/ADARI_raw_statistics.png">
+  <img width="100%"   src="./media/ADARI_ambiguity_and_relevance.png">
 </div>
 
 
