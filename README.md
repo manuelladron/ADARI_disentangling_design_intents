@@ -8,7 +8,7 @@ Design language is ambiguous; many terms and expressionsconvey the same idea, wh
 Our project gravitates around the Ambiguos Descriptionsand Art Images—ADARI—dataset. This dataset is a novelcollection of images and descriptions with special emphasison qualitative attributes present in design intents. The nov-elty of this project comes, therefore, from the study of suchsubjective qualitative attributes, and currently, we are testingwhether state-of-the-art multimodal approaches on retrieval,captioning or generation work on ADARI. We prove thatsuch current models, objective functions and evaluation met-rics are not efficient when dealing with intents, and that weare initiating an exploratory process to determine which taskwe will focus on for the remainder of the project. 
 
 ### ADARI Dataset 
-To address the issue of disentangling design intents in thecontext of creative practice,  we use the Ambiguous De-scriptions and Art Images—ADARI—dataset.   The self-annotated ADARI dataset contains a total of 33,230 samplesof contemporary creative works represented by 264,028raw sentences—provided by the original creators and byart curators—that describe 241,982 images.  This datasetwas assembled by collecting articles that include editorialdescriptions along with associated images of the creativevisual work.  ADARI is an organized dataset divided intoseven categories: architecture, art, design, fashion, furniture,product design and technology. ADARI is the first datasetof pairs of images and descriptions that, besides containingobjective information of the elements in the images such aswooden chairorblack table, focuses on descriptions thatcorrespond to design intents, such asminimal, elegant andsleek looking chair. Table 1 shows the raw counts of sam-ples, images per domain, and sentences and adjectives fromcreatorsandcuratorsper domain. Table 2 shows that givena visual workpiece, original creators use a more ambiguouslanguage than curators in their descriptions, that it, normal-ized results of a human classification of ADARI labels intoqualitative or quantitative attributes.  Over 500 adjectivesper source (cretaor, curators and both) and per domain (fur-niture, fashion, wearable technology) have been annotated.Unsurprisingly, creators express their design intents whilecurators tend to describe the work objectively. Both sourcesof language are used as annotations for the labels of thedataset.
+To address the issue of disentangling design intents in thecontext of creative practice,  we use the Ambiguous De-scriptions and Art Images—ADARI—dataset.   The self-annotated ADARI dataset contains a total of 33,230 samplesof contemporary creative works represented by 264,028 raw sentences provided by the original creators and byart curators that describe 241,982 images.  This datasetwas assembled by collecting articles that include editorialdescriptions along with associated images of the creativevisual work.  ADARI is an organized dataset divided intoseven categories: architecture, art, design, fashion, furniture,product design and technology. ADARI is the first datasetof pairs of images and descriptions that, besides containingobjective information of the elements in the images such as wooden chair or black table, focuses on descriptions that correspond to design intents, such as minimal, elegant and sleek looking chair. Table 1 shows the raw counts of samples, images per domain, and sentences and adjectives fromcreatorsandcuratorsper domain. Table 2 shows that givena visual workpiece, original creators use a more ambiguouslanguage than curators in their descriptions, that it, normalized results of a human classification of ADARI labels intoqualitative or quantitative attributes.  Over 500 adjectivesper source (cretaor, curators and both) and per domain (furniture, fashion, wearable technology) have been annotated.Unsurprisingly, creators express their design intents whilecurators tend to describe the work objectively. Both sourcesof language are used as annotations for the labels of thedataset.
 
 <div  align="center">   
   <img width="28%"   src="./media/figure1_array.png">
@@ -17,10 +17,22 @@ To address the issue of disentangling design intents in thecontext of creative p
 
 To simplify the complexity of the ADARI datset, and unlessotherwise stated, we use the ADARI Furniture domain inall  experiments.   This  contains  over  17,000  images  andapproximately a total of 60,000 adjectives.
 
+<div  align="center">   
+  <img width="28%"   src="./media/ADARI_raw_statistics.png">
+</div>
+
+
 ### Research Challenges
 Creative practice is a broad term that encompasses those fields that produce creative work. Specifically, in the contextof this project,  we refer as creative practice to any fieldthat relies on visual mediums and feedback in the creative process.  This includes works by designers, architects or engineers. In these domains, expressive language, used todescribe, review and discuss work, is crucial.  This type of language gravitates around design intents. For example,image a designer says to a colleague that they shoulddesignthe chair with a more dynamic look; the word <em>dynamic</em> conveys the design intent,  but it can be embodied in an intractable number of visual forms and design variations. While  design  intents  also  include  quantitative  attributes, such as colors, materials or dimensions, a great part of thevocabulary corresponds to qualitative traits.
 
 The main technical challenge of this project is to disentanglesuch attributes from the design objects. For this, tasks suchas classification, retrieval or generation might require different objective functions and evaluation metrics. An important part of this project is to test such different techniques andcurrent models on ADARI, and gauge their effectiveness in disentangling intents.
+
+
+<div  align="center">   
+  <img width="28%"   src="./media/ADARI_raw_statistics.png">
+</div>
+
+
 
 ## Prior Work
 This section first reviews general previous work that provide some context and frame this project.  We then explain in detail some prior work that we have implemented and tested on the ADARI dataset. Lastly, we discuss prior work done using the ADARI dataset.
@@ -41,8 +53,8 @@ The Two Way Net architecture requires the inputs to be pre-encoded by some unimo
 This clustering suggests the Two Way Nets were able to encode similarities in the unimodal representations, however. A closer inspection of these clusters using simple nearest neighbours shows some relationships like the figures 3 and 4. These chairs share design elements, including both their material and simplicity.
 
 <div  align="center">   
-  <img width="28%"   src="./media/chair_a.png">
-    <img width="31.5%"   src="./media/chair_b.png"> 
+  <img width="15%"   src="./media/chair_a.png">
+    <img width="15%"   src="./media/chair_b.png"> 
 
   <p style="font-size:10px"> Image Nearest Neighbor </p>
 </div>
@@ -51,7 +63,7 @@ For a quantitative measure of the clustering of our hidden coordinated represent
 
 
 <div  align="center">   
-  <img width="28%"   src="./media/tsne_perplexity_p36.png">
+  <img width="28%"   src="./media/tsne_perplexity_36.png">
   <p style="font-size:10px"> Figure 2. Two Way Net-generated embeddings reduced to dimension 2. Green samples are embeddings of images, blue are embeddings of text. </p>
 </div>
 
