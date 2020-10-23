@@ -77,6 +77,8 @@ $$\loss(image,label) = max [0, margin - s_{match}(x_{n}, y{n}) + s_{match}(x_{n}
 
 DeViSE and Unifying visual-semantic embeddings approaches use the same loss function as in eq.2, and instead of using another neural network for calculating the matching score, they use the last layer's weights of a pre-trained CNN, such as VGG and others. DeViSE tests their results on ImageNet (ILSVRC) 2012 1K dataset while that Kiros et al. use Flickr8K and Flickr30K. The main different between the two is that DeViSE use pre-trained Glove vectors directly, and for sentences they average the word emeddings while that Kiros et al. use an LSTM to get the representation of the sentence. 
 
+
+<img src="https://render.githubusercontent.com/render/math?math=loss(image,label) = max [0, margin - t_{label}Mv_{image} + t_{contrast}Mv_{image})">
 $$\loss(image,label) = max [0, margin - t_{label}Mv_{image} + t_{contrast}Mv_{image})$$ <em>(2)</em>
 
 We have implemented the three papers, and while we are still running experiments, and therefore, we do not have evaluation metrics yet. We use the same hyperparameters as the original papers, reducing the batch size to 64 due to memory issues. The inputs to the network are variable size list of single words, capping the limit to words max. Different from the original papers, we use a pretrained ResNet-152 as image embeddings, and set the image embedding size matching the word embedding size, that is, 50 dimensions. As loss functions, besides using eq. 1 and 2, we use cosine similarity between the two embeddings. These models converge quick, in less than 10 epochs, and the initial experiments are not being successful. More work is to be done to show the real capacity of these models on ADARI.  
