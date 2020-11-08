@@ -1,3 +1,5 @@
+!pip install sentencepiece==0.1.91
+
 import numpy as np
 import pandas as pd
 import torch
@@ -12,6 +14,7 @@ IMG_LABEL_PATH = "../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
 IMG_TO_SENTENCE_PATH = "../../ADARI/ADARI_furniture_sents.json"
 WORD_TO_INDEX_PATH = "../../ADARI/ADARI_furniture_onehots_w2i_3labels.json"
 
+print("Setting seed...")
 torch.manual_seed(42)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 
