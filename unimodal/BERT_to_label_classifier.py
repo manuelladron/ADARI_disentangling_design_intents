@@ -1,4 +1,4 @@
-!pip install sentencepiece==0.1.91
+#!pip install sentencepiece==0.1.91
 
 import numpy as np
 import pandas as pd
@@ -56,7 +56,7 @@ class ADARIMultiHotSentsDataset(torch.utils.data.Dataset):
         # one hot encode the labels
         l = torch.zeros((self.num_classes))
         for w in self.img_to_labels[imname]:
-            l[self.word_to_index[w]] = 1.0
+            l[self.word_to_index[w] - 1] = 1.0
 
         tokens = tokenizer(
             "".join([s + ' ' for s in self.img_to_sent[imname][0]]),
@@ -106,12 +106,12 @@ def train(bert_model, train_losses, test_losses):
         bert_model.train()
         losses = []
         for labels, input_ids, attn_mask in dataloader:
-            labels.to(device)
-            input_ids.to(device)
-            attn_mask.to(device)
-
             input_ids = input_ids.reshape((input_ids.shape[0], input_ids.shape[2]))
             attn_mask = attn_mask.reshape((attn_mask.shape[0], attn_mask.shape[2]))
+
+            labels = labels.to(device)
+            input_ids = input_ids.to(device)
+            attn_mask = attn_mask.to(device)
 
             optimizer.zero_grad()
             
@@ -130,12 +130,13 @@ def train(bert_model, train_losses, test_losses):
             bert_model.eval()
             losses = []
             for labels, input_ids, attn_mask in dataloader:
-                labels.to(device)
-                input_ids.to(device)
-                attn_mask.to(device)
-
                 input_ids = input_ids.reshape((input_ids.shape[0], input_ids.shape[2]))
                 attn_mask = attn_mask.reshape((attn_mask.shape[0], attn_mask.shape[2]))
+
+                labels = labels.to(device)
+                input_ids = input_ids.to(device)
+                attn_mask = attn_mask.to(device)
+
 
                 logits = bert_model(input_ids = input_ids, attention_mask = attn_mask).logits
 
