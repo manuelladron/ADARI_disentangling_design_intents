@@ -6,12 +6,13 @@ import transformers
 from transformers import BertTokenizer, BertForSequenceClassification
 import json
 import datetime
+from sklearn.metrics import f1_score
 
 
 IMG_LABEL_PATH = "../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
 IMG_TO_SENTENCE_PATH = "../../ADARI/ADARI_furniture_sents.json"
 WORD_TO_INDEX_PATH = "../../ADARI/ADARI_furniture_onehots_w2i_3labels.json"
-BERT_TEST_MODEL_PATH = ""
+BERT_TEST_MODEL_PATH = "BERT_trained"
 
 torch.manual_seed(42)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
@@ -54,7 +55,7 @@ class ADARIMultiHotSentsDataset(torch.utils.data.Dataset):
         # one hot encode the labels
         l = torch.zeros((self.num_classes))
         for w in self.img_to_labels[imname]:
-            l[self.word_to_index[w]] = 1.0
+            l[self.word_to_index[w] - 1] = 1.0
 
         tokens = tokenizer(
             "".join([s + ' ' for s in self.img_to_sent[imname][0]]),
@@ -85,8 +86,8 @@ def test_score(model, test_set, threshold):
     nonzero_words = {}
     avg_f1_score = []
     with torch.no_grad():
-        bert_model.eval()
-        for labels, input_ids, attn_mask in dataloader:
+        model.eval()
+        for labels, input_ids, attn_mask in test_d:
             input_ids = input_ids.reshape((input_ids.shape[0], input_ids.shape[2]))
             attn_mask = attn_mask.reshape((attn_mask.shape[0], attn_mask.shape[2]))
 
@@ -94,7 +95,7 @@ def test_score(model, test_set, threshold):
             input_ids = input_ids.to(device)
             attn_mask = attn_mask.to(device)
 
-            out = torch.sigmoid(bert_model(input_ids = input_ids, attention_mask = attn_mask).logits)
+            out = torch.sigmoid(model(input_ids = input_ids, attention_mask = attn_mask).logits)
 
             score = f1_score(labels.cpu(), (out > threshold).cpu(), average='samples')
             avg_f1_score.append(score)
