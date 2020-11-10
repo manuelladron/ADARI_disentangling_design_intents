@@ -7,13 +7,18 @@ from transformers import BertTokenizer, BertForSequenceClassification
 import json
 import datetime
 from PIL import Image
+from torchvision import models, transforms
 
-IMG_LABEL_PATH = "../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
-IMG_TO_SENTENCE_PATH = "../../ADARI/ADARI_furniture_sents.json"
-WORD_TO_INDEX_PATH = "../../ADARI/ADARI_furniture_onehots_w2i_3labels.json"
-BERT_TEST_MODEL_PATH = ""
-IMG_PATH = ""
-IMG_SIZE = 0
+IMG_LABEL_PATH = "../../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
+IMG_TO_SENTENCE_PATH = "../../../ADARI/ADARI_furniture_sents.json"
+WORD_TO_INDEX_PATH = "../../../ADARI/ADARI_furniture_onehots_w2i_3labels.json"
+IMG_PATH = "../../../ADARI/v2/full"
+
+IMG_SIZE = 64
+
+
+BERT_TEST_MODEL_PATH = "../../../BERT_Classification_Trained"
+RESNET_TEST_MODEL_PATH = "../../../resnet_28.pt"
 
 torch.manual_seed(42)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
@@ -24,6 +29,14 @@ def open_json(path):
     f.close()
     return data 
 
+
+def initialize_resnet(num_classes):
+    model_ft = models.resnet152()
+    num_ftrs = model_ft.fc.in_features
+    model_ft.fc = nn.Linear(num_ftrs, num_classes)
+    
+    return model_ft
+
 class LateFusionDataset(torch.utils.data.Dataset):
     def __init__(
         self, 
@@ -32,7 +45,7 @@ class LateFusionDataset(torch.utils.data.Dataset):
         word_to_index_path,
         tokenizer,
         img_path,
-        img_size
+        img_size,
     ):
         super(LateFusionDataset).__init__()
 
@@ -50,6 +63,8 @@ class LateFusionDataset(torch.utils.data.Dataset):
 
         self.img_path = img_path
         self.img_size = img_size
+
+        self.tokenizer = tokenizer
     
     def __len__(self):
         return len(self.img_to_labels.keys())
@@ -77,7 +92,6 @@ class LateFusionDataset(torch.utils.data.Dataset):
                 transforms.CenterCrop(self.img_size), 
                 transforms.ToTensor()
             ])(img)
-
         return l, tokens.input_ids, tokens.attention_mask, img
 
 
@@ -86,17 +100,20 @@ class LateFusionBERTResnet(torch.nn.Module):
         self, 
         pretrained_bert : BertForSequenceClassification, 
         pretrained_resnet,
-        vocab_size)
+        vocab_size
     ):
         super(LateFusionBERTResnet, self).__init__()
 
         self.pretrained_bert = pretrained_bert
         self.pretrained_resnet = pretrained_resnet
 
-        modules = list(resnet.children())[:-1]
+        modules = list(self.pretrained_resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
 
-        self.classifier = torch.nn.Linear(pretrained_bert.bert.config.hidden_size + modules[-1].out_features, vocab_size)
+        self.classifier = torch.nn.Linear(
+            pretrained_bert.bert.config.hidden_size + pretrained_resnet.fc.in_features, 
+            vocab_size
+        )
         self.dropout = nn.Dropout(self.pretrained_bert.bert.config.hidden_dropout_prob)
 
     def forward(
@@ -118,9 +135,15 @@ class LateFusionBERTResnet(torch.nn.Module):
         resnet_output = self.resnet(images)
 
         # Concatenate
-        catted = torch.cat((bert_output, resnet_output), dim=1)
+        catted = torch.cat((bert_output, resnet_output.reshape(resnet_output.shape[0], -1)), dim=1)
 
         return self.classifier(self.dropout(catted))
+
+    def save(self, filename):
+        torch.save(self.classifier.state_dict(), filename)
+
+    def load(self, filename):
+        self.classifier.load_state_dict(torch.load(filename))
 
 print("Loading tokenizer...")
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -143,7 +166,10 @@ print("Loading Bert Model...")
 test_bert = BertForSequenceClassification.from_pretrained(BERT_TEST_MODEL_PATH, return_dict=True)
 
 print("Loading Resnet model...")
-test_resent = 
+# Resnet was trained with 1-indexed onehots, so adjust that
+test_resnet = initialize_resnet(dataset.num_classes + 1)
+resnet_checkpoint = torch.load(RESNET_TEST_MODEL_PATH, map_location=torch.device(device))
+test_resnet.load_state_dict(resnet_checkpoint['model_state_dict'])
 
 late_fusion_model = LateFusionBERTResnet(test_bert, test_resnet, dataset.num_classes)
 
@@ -172,6 +198,7 @@ def train(model, train_losses, test_losses):
             labels = labels.to(device)
             input_ids = input_ids.to(device)
             attn_mask = attn_mask.to(device)
+            img = img.to(device)
 
             optimizer.zero_grad()
             
@@ -200,6 +227,7 @@ def train(model, train_losses, test_losses):
                 labels = labels.to(device)
                 input_ids = input_ids.to(device)
                 attn_mask = attn_mask.to(device)
+                img = img.to(device)
 
                 logits = model(
                     input_ids = input_ids, 
@@ -222,8 +250,8 @@ try:
 except KeyboardInterrupt:
     pass
 late_fusion_model.cpu()
-late_fusion_model.save_pretrained(f"Late_Fusion_classification_{model_name}")
-with open(f"train_losses_{model_name}.json", "w") as f:
+late_fusion_model.save(f"Late_Fusion_classification_{model_name}.pth")
+with open(f"Late_Fusion_train_losses_{model_name}.json", "w") as f:
     json.dump(train_losses, f) 
-with open(f"test_losses_{model_name}.json", "w") as f:
+with open(f"Late_Fusion_test_losses_{model_name}.json", "w") as f:
     json.dump(train_losses, f) 
