@@ -12,13 +12,13 @@ from torchvision import models, transforms
 IMG_LABEL_PATH = "../../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
 IMG_TO_SENTENCE_PATH = "../../../ADARI/ADARI_furniture_sents.json"
 WORD_TO_INDEX_PATH = "../../../ADARI/ADARI_furniture_onehots_w2i_3labels.json"
-IMG_PATH = "../../../ADARI/v2/full"
+IMG_PATH = "../../../ADARI/full"
 
 IMG_SIZE = 64
 
 
-BERT_TEST_MODEL_PATH = "../../../BERT_Classification_Trained"
-RESNET_TEST_MODEL_PATH = "../../../resnet_28.pt"
+BERT_TEST_MODEL_PATH = "../../../ADARI/BERT_Classification_Data"
+RESNET_TEST_MODEL_PATH = "../../../ADARI/resnet_28.pt"
 
 torch.manual_seed(42)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
@@ -75,7 +75,7 @@ class LateFusionDataset(torch.utils.data.Dataset):
         # one hot encode the labels
         l = torch.zeros((self.num_classes))
         for w in self.img_to_labels[imname]:
-            l[self.word_to_index[w]] = 1.0
+            l[self.word_to_index[w] - 1] = 1.0
 
         tokens = self.tokenizer(
             "".join([s + ' ' for s in self.img_to_sent[imname][0]]),
