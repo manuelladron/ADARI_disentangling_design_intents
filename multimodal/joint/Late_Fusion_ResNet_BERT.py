@@ -106,6 +106,8 @@ class LateFusionBERTResnet(torch.nn.Module):
 
         self.pretrained_bert = pretrained_bert
         self.pretrained_resnet = pretrained_resnet
+        self.pretrained_bert.eval()
+        self.pretrained_resnet.eval()
 
         modules = list(self.pretrained_resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
@@ -122,8 +124,6 @@ class LateFusionBERTResnet(torch.nn.Module):
         attention_mask,
         images
     ):
-        self.pretrained_bert.eval()
-        self.pretrained_resnet.eval()
         # Get BERT features
         outputs = self.pretrained_bert.bert(
             input_ids,
