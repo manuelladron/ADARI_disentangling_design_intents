@@ -20,7 +20,7 @@ IMG_SIZE = 64
 
 BERT_TEST_MODEL_PATH = "../../../ADARI/BERT_Classification_Data"
 RESNET_TEST_MODEL_PATH = "../../../ADARI/resnet_28.pt"
-BERT_RESNET_MODEL_PATH = ""
+BERT_RESNET_MODEL_PATH = "bert_resnet_model.pth"
 
 torch.manual_seed(42)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
@@ -187,7 +187,7 @@ def test_score(model, test_set, threshold):
     avg_f1_score = []
     with torch.no_grad():
         model.eval()
-        for labels, input_ids, attn_mask, img in dataloader:            i
+        for labels, input_ids, attn_mask, img in test_d:
             input_ids = input_ids.reshape((input_ids.shape[0], input_ids.shape[2]))
             attn_mask = attn_mask.reshape((attn_mask.shape[0], attn_mask.shape[2]))
 
