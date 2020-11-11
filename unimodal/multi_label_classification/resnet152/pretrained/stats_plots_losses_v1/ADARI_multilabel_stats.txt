@@ -1,0 +1,9 @@
+T: 0.1 Evaluate F1: 0.2759 Acc: 0.0220 Prec: 0.2841 LRAPS: 0.1389
+T: 0.2 Evaluate F1: 0.2608 Acc: 0.0350 Prec: 0.3074 LRAPS: 0.1361
+T: 0.3 Evaluate F1: 0.2455 Acc: 0.0340 Prec: 0.3228 LRAPS: 0.1307
+T: 0.4 Evaluate F1: 0.2331 Acc: 0.0340 Prec: 0.3343 LRAPS: 0.1263
+T: 0.5 Evaluate F1: 0.2185 Acc: 0.0350 Prec: 0.3378 LRAPS: 0.1206
+T: 0.6 Evaluate F1: 0.2058 Acc: 0.0310 Prec: 0.3427 LRAPS: 0.1154
+T: 0.7 Evaluate F1: 0.1886 Acc: 0.0270 Prec: 0.3390 LRAPS: 0.1084
+T: 0.8 Evaluate F1: 0.1707 Acc: 0.0220 Prec: 0.3318 LRAPS: 0.1013
+T: 0.9 Evaluate F1: 0.1438 Acc: 0.0190 Prec: 0.3108 LRAPS: 0.0881
