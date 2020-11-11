@@ -8,7 +8,8 @@ import json
 import datetime
 from PIL import Image
 from torchvision import models, transforms
-from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score, f1_score, accuracy_score, label_ranking_average_precision_score, average_precision_score, roc_auc_score
+from sklearn.utils.class_weight import compute_sample_weight
 
 IMG_LABEL_PATH = "../../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
 IMG_TO_SENTENCE_PATH = "../../../ADARI/ADARI_furniture_sents.json"
@@ -183,8 +184,36 @@ def test_score(model, test_set, threshold):
     model.eval()
     model.to(device)
     test_d = torch.utils.data.DataLoader(test_set, batch_size=16, shuffle=False)
-    nonzero_words = {}
-    avg_f1_score = []
+
+    avg_f1 = []
+    avg_accuracy = []
+    avg_precision = []
+    avg_lraps = []
+    avg_mAP = []
+    avg_auc = []
+
+    avg_f1_unw = []
+    avg_accuracy_unw = []
+    avg_precision_unw = []
+    avg_lraps_unw = []
+    avg_mAP_unw = []
+    avg_auc_unw = []
+
+    metrics = {
+        "avg_f1": 0,
+        "avg_accuracy": 0,
+        "avg_precision": 0,
+        "avg_lraps": 0,
+        "avg_mAP": 0,
+        "avg_auc": 0,
+        "avg_f1_unw": 0,
+        "avg_accuracy_unw": 0,
+        "avg_precision_unw": 0,
+        "avg_lraps_unw": 0,
+        "avg_mAP_unw": 0,
+        "avg_auc_unw": 0   
+    }
+
     with torch.no_grad():
         model.eval()
         for labels, input_ids, attn_mask, img in test_d:
@@ -204,9 +233,43 @@ def test_score(model, test_set, threshold):
 
             out = torch.sigmoid(logits)
 
-            score = f1_score(labels.cpu(), (out > threshold).cpu(), average='samples')
-            avg_f1_score.append(score)
-    print(f"Threshold: {threshold}: {sum(avg_f1_score) / len(avg_f1_score)}")
+            SAMPLE_WEIGHT = compute_sample_weight('balanced', labels.to("cpu"))
+
+            target = labels
+            preds = (out > threshold)
+
+            # WEIGHTED 
+            avg_f1.append(f1_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples", sample_weight=SAMPLE_WEIGHT))
+            avg_precision.append(precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples",sample_weight=SAMPLE_WEIGHT))
+            avg_accuracy.append(accuracy_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(),sample_weight=SAMPLE_WEIGHT))
+            avg_lraps.append(label_ranking_average_precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(),sample_weight=SAMPLE_WEIGHT))
+            avg_mAP.append(average_precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples",sample_weight=SAMPLE_WEIGHT))
+            avg_auc.append(roc_auc_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples", sample_weight=SAMPLE_WEIGHT))
+
+            avg_f1_unw.append(f1_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples"))
+            avg_precision_unw.append(precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples"))
+            avg_accuracy_unw.append(accuracy_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy()))
+            avg_lraps_unw.append(label_ranking_average_precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy()))
+            avg_mAP_unw.append(average_precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples"))
+            avg_auc_unw.append(roc_auc_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples"))
+            
+    metrics["avg_f1"] = sum(avg_f1) / len(avg_f1)
+    metrics["avg_precision"] = sum(avg_precision) / len(avg_precision)
+    metrics["avg_accuracy"] = sum(avg_accuracy) / len(avg_accuracy)
+    metrics["avg_lraps"] = sum(avg_lraps) / len(avg_lraps)
+    metrics["avg_mAP"] = sum(avg_mAP) / len(avg_mAP)
+    metrics["avg_auc"] = sum(avg_auc) / len(avg_auc)
+
+    metrics["avg_f1_unw"] = sum(avg_f1_unw) / len(avg_f1_unw)
+    metrics["avg_precision_unw"] = sum(avg_precision_unw) / len(avg_precision_unw)
+    metrics["avg_accuracy_unw"] = sum(avg_accuracy_unw) / len(avg_accuracy_unw)
+    metrics["avg_lraps_unw"] = sum(avg_lraps_unw) / len(avg_lraps_unw)
+    metrics["avg_mAP_unw"] = sum(avg_mAP_unw) / len(avg_mAP_unw)
+    metrics["avg_auc_unw"] = sum(avg_auc_unw) / len(avg_auc_unw)
+
+    with open(f"BERT_metrics_{threshold}.json", "w") as f:
+        json.dump(metrics, f)
+    print(metrics)
 
 for t in [.1, .2, .3, .4, .5, .6, .7, .8, .9]:
     print(f"Testing {t}...")
