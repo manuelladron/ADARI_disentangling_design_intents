@@ -6,13 +6,13 @@ import transformers
 from transformers import BertTokenizer, BertForSequenceClassification
 import json
 import datetime
-from sklearn.metrics import f1_score
-
+from sklearn.metrics import precision_score, f1_score, accuracy_score, label_ranking_average_precision_score, average_precision_score, roc_auc_score
+from sklearn.utils.class_weight import compute_sample_weight
 
 IMG_LABEL_PATH = "../../ADARI/ADARI_furniture_tfidf_top3adjs.json"
 IMG_TO_SENTENCE_PATH = "../../ADARI/ADARI_furniture_sents.json"
 WORD_TO_INDEX_PATH = "../../ADARI/ADARI_furniture_onehots_w2i_3labels.json"
-BERT_TEST_MODEL_PATH = "BERT_trained"
+BERT_TEST_MODEL_PATH = "../../ADARI/BERT_Classification_Data"
 
 torch.manual_seed(42)
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
@@ -84,7 +84,12 @@ def test_score(model, test_set, threshold):
     model.to(device)
     test_d = torch.utils.data.DataLoader(test_set, batch_size=16, shuffle=False)
     nonzero_words = {}
-    avg_f1_score = []
+    avg_f1 = []
+    avg_accuracy = []
+    avg_precision = []
+    avg_lraps = []
+    avg_mAP = []
+    avg_auc = []
     with torch.no_grad():
         model.eval()
         for labels, input_ids, attn_mask in test_d:
@@ -97,8 +102,10 @@ def test_score(model, test_set, threshold):
 
             out = torch.sigmoid(model(input_ids = input_ids, attention_mask = attn_mask).logits)
 
-            score = f1_score(labels.cpu(), (out > threshold).cpu(), average='samples')
-            avg_f1_score.append(score)
+            SAMPLE_WEIGHT = compute_sample_weight('balanced', labels.to("cpu"))
+
+            #score = f1_score(labels.cpu(), (out > threshold).cpu(), average='samples')
+            #avg_f1_score.append(score)
     print(f"Threshold: {threshold}: {sum(avg_f1_score) / len(avg_f1_score)}")
 
 for t in [.1, .2, .3, .4, .5, .6, .7, .8, .9]:
