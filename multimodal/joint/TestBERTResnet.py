@@ -252,7 +252,7 @@ def test_score(model, test_set, threshold):
             avg_lraps_unw.append(label_ranking_average_precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy()))
             avg_mAP_unw.append(average_precision_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples"))
             avg_auc_unw.append(roc_auc_score(target.to("cpu").to(torch.int).numpy(), preds.to("cpu").to(torch.int).numpy(), average="samples"))
-            
+
     metrics["avg_f1"] = sum(avg_f1) / len(avg_f1)
     metrics["avg_precision"] = sum(avg_precision) / len(avg_precision)
     metrics["avg_accuracy"] = sum(avg_accuracy) / len(avg_accuracy)
@@ -267,7 +267,7 @@ def test_score(model, test_set, threshold):
     metrics["avg_mAP_unw"] = sum(avg_mAP_unw) / len(avg_mAP_unw)
     metrics["avg_auc_unw"] = sum(avg_auc_unw) / len(avg_auc_unw)
 
-    with open(f"BERT_metrics_{threshold}.json", "w") as f:
+    with open(f"BERT_resnet_metrics_{threshold}.json", "w") as f:
         json.dump(metrics, f)
     print(metrics)
 
