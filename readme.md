@@ -157,37 +157,60 @@ For a quantitative measure of the clustering of our hidden coordinated represent
 
 
 #### m-CNN and ResVe Cross-modal Retrieval
-We perform the following retrieval tasks: A) image retrieval given a query image \(I\). For each query \(I\) image in the test set, extract the image representation and find the closest \(N\) images to \(I\). We define \(N\) to 5. For each image in \(N\) we extract their ground truth labels and report Recall\@K (R@K), with \(K = 1, 5, 10\), and mean average precision (mAP). B) Word retrieval given a query image \(I\). Since the image space and word space are both 50-dimensional, we get the nearest 20 words to this image. Then we report whether those words are contained in the set of ground truth labels of the image. C) Image retrieval given a design intent; in this case the design intents are adjectives. For instance, given the word \textit{organic}, find its closest 10 images and report whether the ground truth labels of these images are \textit{organic}. See table \ref{retrieval_stats}. We also report random prediction for word and image retrieval, and include the metrics of off-the-shelf pretrained resnet in the image retrieval task. 
+We perform the following retrieval tasks: A) image retrieval given a query image \(I\). For each query \(I\) image in the test set, extract the image representation and find the closest \(N\) images to \(I\). We define \(N\) to 5. For each image in \(N\) we extract their ground truth labels and report Recall\@K (R@K), with \(K = 1, 5, 10\), and mean average precision (mAP). B) Word retrieval given a query image \(I\). Since the image space and word space are both 50-dimensional, we get the nearest 20 words to this image. Then we report whether those words are contained in the set of ground truth labels of the image. C) Image retrieval given a design intent; in this case the design intents are adjectives. For instance, given the word \textit{organic}, find its closest 10 images and report whether the ground truth labels of these images are \textit{organic}. See table 1. We also report random prediction for word and image retrieval, and include the metrics of off-the-shelf pretrained resnet in the image retrieval task. 
 
 We find that the best performance in image retrieval is given by our m-CNN model. This is expected since it is also a more complex model in which text and image are convolved together, and the score is based on such convolution. Our ResVe model is still better than image features from ResNet, although not by much. This shows that the high variance of the images and the large vocabulary size requires more complex models than just applying contrasting loss to pretrained models. 
 
 The performance of our baselines on word retrieval is extremely low. Our models do not get enough signal when doing retrieval operations in the language modality, and just random retrieval outperforms our models. A reason for this might be that the images in the joint convolution in the m-CNN model out-weight the text modality. No clear outcome is drawn by the under-performing ResVe other than the model does not get sufficient signal. 
 
+
+<div  align="center">   
+  <img width="33%"   src="./media/mCNN_valset_sample.png">
+    <img width="33%"   src="./media/resVe_valset_sample.png"> 
+      <img width="33%"   src="./media/offtheshelf_valset_sample.png"> 
+
+  <p style="font-size:10px"> Figure 2. Image Nearest Neighbor </p>
+</div>
+
+
 Figure \ref{fig:image_retrieval_} shows a comparison of the two baselines, m-CNN and ResVe, and off-the-shelf pretrained ResNet. The image at the left containing the frame is a query image from the test set, and the 5 remaining images are the closest images in each model's image space. Highlighted words under the query image are matching labels the query's closest neighbors.
 
 Figure \ref{fig:mcnn} shows a more consistent aesthetics between the 6 images. This model is also the best performing model counting the amount of labels that the closest images have that are matching with the image query. Figure \ref{fig:resve} also show some visual consistency, but it fails in retrieve a wooden chair in the 2nd closest image. The number of matching labels is the lowest between the three models. Finally off-the-shelf ResNet \ref{fig:resnet} shows more variance within the images. However, the number of matching labels is closer to m-CNN than ResVe. A conclusion of this might be that the images still have a very high number of annotations, and that not all adjectives are valid descriptors of the image. Finding synsets to reduce the vocabulary size might help decrease the variance. 
 
+<div  align="center">   
+  <img width="50%"   src="./media/11777_midterm_report_table1.png">
+  <p style="font-size:10px">  </p>
+</div>
 
 #### Multilabel Classifiers
 ADARI's labels correspond to adjectives extracted from the corpus that might describe each set of images, with an average of 26 labels per image. We decrease the amount of labels following two strategies. The first calculates the sampling rate equation by \cite{mikolov2013distributed} in their skipgram model, and we select the 10 labels with higher sampling rate. The second selects the top 3 labels using the term frequency-inverse document frequency (TF-IDF) formula:
 
 <img src="https://render.githubusercontent.com/render/math?math=w_{i,j} = tf_{i,j} \log(\frac{N}{df_i}) )"><em>(2)</em>
 
-where \(tf_{i,j}\) is the number of occurrences of \(i\) in \(j\), \(df_i\) is the number of documents containing \(i\), and \(N\) is the total number of documents. The performance of our ResNet-152 and VGG-16 multilabel classifiers are illustrated in table \ref{class_image}. We observe that the metrics on the top 3 labels present a worse F1 score and precision but better accuracy, and similar mean average precision and area under the curve metrics. This is expected since the TF-IDF tends to balance low-occurrence labels, so that labels that repeat across the dataset such as \textit{different} have a lower score because it does not provide meaningful information to particular documents. Therefore, the vocabulary increases significantly, from \(2,486\) in top-10 labels to \(4,780\) words. For multilabel classification problems, however, mean average precision (mAP) or label ranking average precision score (LRAPs) are more meaningful metrics. Still, our ResNet model performs very poorly with nearly a 9\% average precision when calculated weighted samples on top 3 labels. While this is better than random, it is far away from good. The VGG-16 model reports worse numbers than ResNet. To better understand how the model cluster the images, we run a T-SNE visualization on images on the test set as shown in Figure \ref{tsne_class}. We see how the images are clustered based on color, materials and background, rather than based on design intents. The visualization of the T-SNE on labels show the inability of our model to cluster images based on design intents (Figure \ref{tsne_class}). Approximately around epoch 25, both top-10 and top-3 datasets' versions overfit the training data, achieving an F1, accuracy, precision and AUC of 99\% (in the training set), which is an indication that the model is powerful enough for this dataset.
+where \(tf_{i,j}\) is the number of occurrences of \(i\) in \(j\), \(df_i\) is the number of documents containing \(i\), and \(N\) is the total number of documents. The performance of our ResNet-152 and VGG-16 multilabel classifiers are illustrated in table 2. We observe that the metrics on the top 3 labels present a worse F1 score and precision but better accuracy, and similar mean average precision and area under the curve metrics. This is expected since the TF-IDF tends to balance low-occurrence labels, so that labels that repeat across the dataset such as \textit{different} have a lower score because it does not provide meaningful information to particular documents. Therefore, the vocabulary increases significantly, from \(2,486\) in top-10 labels to \(4,780\) words. For multilabel classification problems, however, mean average precision (mAP) or label ranking average precision score (LRAPs) are more meaningful metrics. Still, our ResNet model performs very poorly with nearly a 9\% average precision when calculated weighted samples on top 3 labels. While this is better than random, it is far away from good. The VGG-16 model reports worse numbers than ResNet. To better understand how the model cluster the images, we run a T-SNE visualization on images on the test set as shown in Figure \ref{tsne_class}. We see how the images are clustered based on color, materials and background, rather than based on design intents. The visualization of the T-SNE on labels show the inability of our model to cluster images based on design intents (Figure \ref{tsne_class}). Approximately around epoch 25, both top-10 and top-3 datasets' versions overfit the training data, achieving an F1, accuracy, precision and AUC of 99\% (in the training set), which is an indication that the model is powerful enough for this dataset.
 
 <div  align="center">   
-  <img width="28%"   src="./media/tSNE-multilabel_classifier_3labels_nol.png">
+  <img width="40%"   src="./media/tSNE-multilabel_classifier_3labels_nol.png">
   <p style="font-size:10px"> Figure 7. Clusters of images on fine-tuned ResNet-152 </p>
 </div>
 
-Table \ref{class_BERT} shows the same evaluation metrics on our unimodal BERT classifier and multimodal BERT + ResNet classifier. The performance of both models is much higher than the image classification tasks. BERT is able to utilize it's layer of self attention to focus down on the adjective that is the most prominent in the description. Given that the adjective is already in the input, the strong performance by BERT is clearly implemented.The multimodal BERT+ResNet classifier improves the mean average precision by 1~1.5 points, proving that the underperforming ResNet does not contribute much to the classification process. 
+<div  align="center">   
+  <img width="50%"   src="./media/11777_midterm_report_table2.png">
+  <p style="font-size:10px">  </p>
+</div>
 
+Table 3 shows the same evaluation metrics on our unimodal BERT classifier and multimodal BERT + ResNet classifier. The performance of both models is much higher than the image classification tasks. BERT is able to utilize it's layer of self attention to focus down on the adjective that is the most prominent in the description. Given that the adjective is already in the input, the strong performance by BERT is clearly implemented.The multimodal BERT+ResNet classifier improves the mean average precision by 1~1.5 points, proving that the underperforming ResNet does not contribute much to the classification process. 
+
+<div  align="center">   
+  <img width="50%"   src="./media/11777_midterm_report_table3.png">
+  <p style="font-size:10px">  </p>
+</div>
 
 ### New Research Ideas
 Moving forward, we plan on adapting and modifying a recently published paper, FashionBERT. \cite{gao2020fashionbert} published in May 2020, it addresses many of the same issues we have discussed. One prominent contribution is that of patched image tokens. Traditional cross modal methods use regions of interest to align text to image features. This is problematic in the more subjective domain of fashion and design, as regions of interest typically cluster around objects like faces, hands, etc that are irrelevant in terms of the design. To address this, FashionBERT divides the image into a grid of patches, where each patch is encoded and used as a token. 
 
 <div  align="center">   
-  <img width="28%"   src="./media/fashionBERT.png">
+  <img width="40%"   src="./media/fashionBERT.png">
   <p style="font-size:10px"> Figure 7. Clusters of images on fine-tuned ResNet-152 </p>
 </div>
 
