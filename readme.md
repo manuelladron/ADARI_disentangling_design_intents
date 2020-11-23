@@ -175,18 +175,21 @@ ADARI's labels correspond to adjectives extracted from the corpus that might des
 
 where \(tf_{i,j}\) is the number of occurrences of \(i\) in \(j\), \(df_i\) is the number of documents containing \(i\), and \(N\) is the total number of documents. The performance of our ResNet-152 and VGG-16 multilabel classifiers are illustrated in table \ref{class_image}. We observe that the metrics on the top 3 labels present a worse F1 score and precision but better accuracy, and similar mean average precision and area under the curve metrics. This is expected since the TF-IDF tends to balance low-occurrence labels, so that labels that repeat across the dataset such as \textit{different} have a lower score because it does not provide meaningful information to particular documents. Therefore, the vocabulary increases significantly, from \(2,486\) in top-10 labels to \(4,780\) words. For multilabel classification problems, however, mean average precision (mAP) or label ranking average precision score (LRAPs) are more meaningful metrics. Still, our ResNet model performs very poorly with nearly a 9\% average precision when calculated weighted samples on top 3 labels. While this is better than random, it is far away from good. The VGG-16 model reports worse numbers than ResNet. To better understand how the model cluster the images, we run a T-SNE visualization on images on the test set as shown in Figure \ref{tsne_class}. We see how the images are clustered based on color, materials and background, rather than based on design intents. The visualization of the T-SNE on labels show the inability of our model to cluster images based on design intents (Figure \ref{tsne_class}). Approximately around epoch 25, both top-10 and top-3 datasets' versions overfit the training data, achieving an F1, accuracy, precision and AUC of 99\% (in the training set), which is an indication that the model is powerful enough for this dataset.
 
+<div  align="center">   
+  <img width="28%"   src="./media/tSNE-multilabel_classifier_3labels_nol.png">
+  <p style="font-size:10px"> Figure 7. Clusters of images on fine-tuned ResNet-152 </p>
+</div>
+
 Table \ref{class_BERT} shows the same evaluation metrics on our unimodal BERT classifier and multimodal BERT + ResNet classifier. The performance of both models is much higher than the image classification tasks. BERT is able to utilize it's layer of self attention to focus down on the adjective that is the most prominent in the description. Given that the adjective is already in the input, the strong performance by BERT is clearly implemented.The multimodal BERT+ResNet classifier improves the mean average precision by 1~1.5 points, proving that the underperforming ResNet does not contribute much to the classification process. 
 
 
 ### New Research Ideas
 Moving forward, we plan on adapting and modifying a recently published paper, FashionBERT. \cite{gao2020fashionbert} published in May 2020, it addresses many of the same issues we have discussed. One prominent contribution is that of patched image tokens. Traditional cross modal methods use regions of interest to align text to image features. This is problematic in the more subjective domain of fashion and design, as regions of interest typically cluster around objects like faces, hands, etc that are irrelevant in terms of the design. To address this, FashionBERT divides the image into a grid of patches, where each patch is encoded and used as a token. 
 
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width= \columnwidth]{fashionbert.png}
-  \caption{FashionBERT Model Architecture}
-  \label{tsne_class}
-\end{figure}
+<div  align="center">   
+  <img width="28%"   src="./media/fashionBERT.png">
+  <p style="font-size:10px"> Figure 7. Clusters of images on fine-tuned ResNet-152 </p>
+</div>
 
 #### Patches with Regions of Interest
 One direction we'd like to experiment with is combining regions of interest with patches. Our images contain more complex backgrounds than those in Fashion-GEN. It may be useful to have the model first extract the area containing the object in question, and then divide that region into patches to avoid focusing on object-level details. Our multimodal experiments with m-CNNs showed good clustering performance. Thus, we could the features of this style of model as our backbone when encoding the patches, and as a method for producing loose regions of interest to narrow down our patch region. 
