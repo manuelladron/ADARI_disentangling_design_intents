@@ -1,4 +1,4 @@
-# Multimodal Machine Learning: Cross-modal retrieval on ADARI dataset
+# Multimodal Machine Learning: Disentangling Design Intents 
 
 Repo for the course 11-777 Multimodal Machine Learning, at Carnegie Mellon University. 
 
