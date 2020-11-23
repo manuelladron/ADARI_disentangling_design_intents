@@ -11,7 +11,7 @@ Our project gravitates around the Ambiguos Descriptionsand Art Images—ADARI—
 Language can be ambiguous and similar ideas can be expressed in many different expressions. This is specially true in design fields, where conceptual ideas are generally described by high-level, qualitative attributes, called design intents. Even though these descriptors are highly used in everyday language by designers—"the dinning table should look more organic", "this chair is lightweight and minimal"—, they have complex visual associations due to a partial subjective and conceptual components and thus, finding visual representations is a challenge. While humans might be able to identify design intents from an image of a chair with attributes such as organic or minimalist, and differentiate between a heavyweight and a lightweight stand-lamp, they might also face challenges differentiating design intents such as dynamic, organic or functional. Current machine learning literature is unable to recognize this type of high-level attributes, but has potential to understand them. Resolving such task would have a major impact in design communities, opening new scenarios where natural human language could directly be used in the process of design. 
 
 <div  align="center">   
-  <img width="70%"   src="./media/sample_grounding.png">
+  <img width="70%"   src="./media/adari_datasample.png">
   <p style="font-size:10px"> Figure 1. Complex relationships between modalities in a sample from ADARI Furniture dataset </p>
 </div>
 
