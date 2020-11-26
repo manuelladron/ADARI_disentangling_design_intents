@@ -29,6 +29,9 @@ def construct_bert_input(patches, input_ids, bert_model):
         input_ids, 
         token_type_ids=torch.zeros(input_ids.shape), 
         position_ids=torch.arange(0, input_ids.shape[1]) * torch.ones(input_ids.shape))
+
+    # pad word embeddings to match shape of image embeddings
+    word_embeddings = F.pad(word_embeddings, (0, patches.shape[2] - word_embeddings.shape[2]))
     
     image_position_ids = torch.arange(1, patches.shape[1]) * torch.ones(patches.shape[0])
     image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]))
@@ -113,7 +116,6 @@ class MultiModalBertDataset(Dataset):
         
         tokens = self.tokenizer(
             "".join([s + ' ' for s in self.img_to_sent[imname][0]]),
-            padding = 'max_length',
             max_length = 50,
             truncation = True,
             return_tensors = 'pt')            
