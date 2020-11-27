@@ -43,7 +43,7 @@ def construct_bert_input(patches, input_ids, bert_model):
     # now shape batch size, im sequence length, 768
     patches = patches.view(word_embeddings.shape[0], im_seq_len, -1)
 
-    # shape: batch size, sequence length, image embedding size
+    # shape: batch size, im sequence length, embedding size
     image_embeddings = patches + image_position_embeds + image_token_type_embeds
 
     return torch.cat((word_embeddings, image_embeddings), dim=1)
