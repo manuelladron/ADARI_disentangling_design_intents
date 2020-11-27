@@ -30,19 +30,22 @@ def construct_bert_input(patches, input_ids, bert_model):
         token_type_ids=torch.zeros(input_ids.shape), 
         position_ids=torch.arange(0, input_ids.shape[1]) * torch.ones(input_ids.shape))
 
-    # pad word embeddings to match shape of image embeddings
-    word_embeddings = F.pad(word_embeddings, (0, patches.shape[2] - word_embeddings.shape[2]))
-    
     image_position_ids = torch.arange(1, patches.shape[1]) * torch.ones(patches.shape[0])
     image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]))
 
     image_position_embeds = bert_model.position_embeddings(image_position_ids)
     image_token_type_embeds = bert_model.token_type_embeddings(image_token_type_ids)
 
+    # transforms patches into batch size, im sequence length, 768
+    im_seq_len = patches.shape[1]
+    patches = patches.view(-1, patches.shape[2])
+    patches = bert_model.im_patch_fc(patches)
+    # now shape batch size, im sequence length, 768
+    patches = patches.view(word_embeddings.shape[0], im_seq_len, -1)
+
     # shape: batch size, sequence length, image embedding size
     image_embeddings = patches + image_position_embeds + image_token_type_embeds
 
-    # TODO: WORD_EMBEDS AND IMAGE_EMBEDS PROBABLY WONT BE SAME SHAPE
     return torch.cat((word_embeddings, image_embeddings), dim=1)
 
 
