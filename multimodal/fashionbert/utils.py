@@ -114,14 +114,15 @@ class MultiModalBertDataset(Dataset):
                          img.shape[1] % self.patch_size // 2, img.shape[1] % self.patch_size // 2))
         
         patches = []
-        for i in range(img.shape[1] // self.patch_size):
-            for j in range(img.shape[2] // self.patch_size):
-                patches.append(self.im_encoder(img[:, 
-                                        i*self.patch_size:(i+1)*self.patch_size, 
-                                        j*self.patch_size:(j+1)*self.patch_size]
-                                        .reshape(
-                                            (1, img.shape[0], self.img_size, self.img_size
-                                            )))[0])
+        with torch.no_grad():
+            for i in range(img.shape[1] // self.patch_size):
+                for j in range(img.shape[2] // self.patch_size):
+                    patches.append(self.im_encoder(img[:, 
+                                            i*self.patch_size:(i+1)*self.patch_size, 
+                                            j*self.patch_size:(j+1)*self.patch_size]
+                                            .reshape(
+                                                (1, img.shape[0], self.img_size, self.img_size
+                                                )))[0])
         
         tokens = self.tokenizer(
             "".join([s + ' ' for s in text[0]]),

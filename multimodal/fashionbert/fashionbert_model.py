@@ -5,8 +5,9 @@ import PIL
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 import transformers
+from transformers import AdamW
 from transformers import BertTokenizer, BertModel, BertOnlyMLMHead, BertOnlyNSPHead
-from utils import construct_bert_input
+from utils import construct_bert_input, MultiModalBertDataset
 
 
 class FashionBert(torch.nn.Module):
@@ -30,20 +31,16 @@ class FashionBert(torch.nn.Module):
 
     def forward(
         self,
-        patches,
-        input_ids,
+        embeds,
         labels=None,
         unmasked_patch_features=None,
         is_paired=None,
     ):
         """
             Args: 
-                patches
-                    Masked image features
-                        batch size, image sequence length, image embedding size
-                input_ids
-                    Masked tokenized token ids
-                        batch size, word sequence length
+                embeds
+                    hidden embeddings to pass to the bert model
+                        batch size, seq length, hidden dim
                 labels
                     Unmasked tokenized token ids
                         batch size, word sequence length
@@ -54,7 +51,6 @@ class FashionBert(torch.nn.Module):
                     bool tensor, Whether the sample is aligned with the sentence
                         batch size, 1
         """
-        embeds = construct_bert_input(patches, input_ids, self)
 
         outputs = self.model(input_embeds=embeds, return_dict=True)
         sequence_output = outputs.last_hidden_state
@@ -90,3 +86,47 @@ class FashionBert(torch.nn.Module):
             "masked_patch_loss": masked_patch_loss,
             "alignment_loss": alignment_loss
             }
+
+
+def train(fashion_bert, dataset, params, device):
+    dataloader = torch.utils.data.DataLoader(
+        dataset, 
+        batch_size=params.batch_size, 
+        shuffle=True,
+        )
+
+    fashion_bert.to(device)
+    fashion_bert.train()
+    opt = AdamW(fashion_bert.params(), lr=params.lr)
+
+    for _ in range(params.num_epochs):
+        for patches, input_ids, is_paired in dataloader:
+            patches = patches.to(device)
+            input_ids = input_ids.to(device)
+            is_paired = is_paired.to(device)
+
+            opt.zero_grad()
+
+            # mask image patches with prob 10%
+            im_seq_len = patches.shape[1]
+            masked_patches = patches.detach().clone().to(device)
+            masked_patches = masked_patches.view(-1, patches.shape[2])
+            im_mask = torch.rand((masked_patches.shape[0], 1)) >= 0.1
+            masked_patches *= im_mask
+            masked_patches = masked_patches.view(params.batch_size, im_seq_len, masked_patches.shape[2])
+
+            # mask tokens with prob 15%, note id 103 is the [MASK] token
+            token_mask = torch.rand(input_ids.shape)
+            masked_input_ids = input_ids.detach().clone().to(device)
+            masked_input_ids[token_mask < 0.15] = 103
+
+            embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert)
+            outputs = fashion_bert(embeds, input_ids, patches, is_paired)
+
+            loss = (1. / 3.) * outputs['masked_lm_loss'] \
+                + (1. / 3.) * outputs['masked_patch_loss'] \
+                + (1. / 3.) * outputs['alignment_loss']
+
+            loss.backward()
+            opt.step()
+
