@@ -5,7 +5,7 @@ import PIL
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 import transformers
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import BertTokenizer
 
 
 def open_json(path):
@@ -21,11 +21,12 @@ def save_json(file_path, data):
 
 
 
-def construct_bert_input(patches, input_ids, bert_model):
+def construct_bert_input(patches, input_ids, fashion_bert):
     # patches shape: batch size, im sequence length, embedding size
+    # input_ids shape: batch size, sentence length
 
     # shape: batch size, sequence length, embedding size
-    word_embeddings = bert_model.embeddings(
+    word_embeddings = fashion_bert.embeddings(
         input_ids, 
         token_type_ids=torch.zeros(input_ids.shape), 
         position_ids=torch.arange(0, input_ids.shape[1]) * torch.ones(input_ids.shape))
@@ -33,13 +34,13 @@ def construct_bert_input(patches, input_ids, bert_model):
     image_position_ids = torch.arange(1, patches.shape[1]) * torch.ones(patches.shape[0])
     image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]))
 
-    image_position_embeds = bert_model.position_embeddings(image_position_ids)
-    image_token_type_embeds = bert_model.token_type_embeddings(image_token_type_ids)
+    image_position_embeds = fashion_bert.position_embeddings(image_position_ids)
+    image_token_type_embeds = fashion_bert.token_type_embeddings(image_token_type_ids)
 
     # transforms patches into batch size, im sequence length, 768
     im_seq_len = patches.shape[1]
     patches = patches.view(-1, patches.shape[2])
-    patches = bert_model.im_patch_fc(patches)
+    patches = fashion_bert.im_patch_fc(patches)
     # now shape batch size, im sequence length, 768
     patches = patches.view(word_embeddings.shape[0], im_seq_len, -1)
 
@@ -69,16 +70,17 @@ class MultiModalBertDataset(Dataset):
     def __init__(
         self, 
         path_to_images, 
-        img_to_sentences_path, 
+        data_dict_path,
         patch_size = 8, 
         img_size = 64,
         device = None
     ):
         super(MultiModalBertDataset).__init__()
         self.img_path = path_to_images
-        self.img_to_sentences_path = img_to_sentences_path
 
-        self.img_to_sent = open_json(self.img_to_sentences_path)
+        # list of dicts giving img name, sentence, 
+        # and whether the sentence is paired or not
+        self.data_dict = open_json(self.data_dict_path)
 
         self.patch_size = patch_size
         self.img_size = img_size
@@ -93,7 +95,11 @@ class MultiModalBertDataset(Dataset):
         return len(self.img_to_sent)
 
     def __getitem__(self, index):
-        image_name = self.img_to_sent[index]
+        sample = self.data_dict[index]
+
+        image_name = sample['id']
+        text = sample['text']
+        is_paired = sample['label']
         
         name = self.img_path + "/" + image_name
         img = Image.open(name)
@@ -118,10 +124,10 @@ class MultiModalBertDataset(Dataset):
                                             )))[0])
         
         tokens = self.tokenizer(
-            "".join([s + ' ' for s in self.img_to_sent[imname][0]]),
+            "".join([s + ' ' for s in text[0]]),
             max_length = 50,
             truncation = True,
             return_tensors = 'pt')            
 
     
-        return torch.tensor(patches, device=self.device), tokens['input_ids']
+        return torch.tensor(patches, device=self.device), tokens['input_ids'], torch.tensor(is_paired, device=self.device)
