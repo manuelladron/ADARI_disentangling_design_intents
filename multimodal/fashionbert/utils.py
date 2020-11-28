@@ -26,16 +26,17 @@ def construct_bert_input(patches, input_ids, fashion_bert):
     # input_ids shape: batch size, sentence length
 
     # shape: batch size, sequence length, embedding size
-    word_embeddings = fashion_bert.embeddings(
+    word_embeddings = fashion_bert.bert.embeddings(
         input_ids, 
-        token_type_ids=torch.zeros(input_ids.shape), 
-        position_ids=torch.arange(0, input_ids.shape[1]) * torch.ones(input_ids.shape))
+        token_type_ids=torch.zeros(input_ids.shape, dtype=torch.long), 
+        position_ids=torch.arange(0, input_ids.shape[1], dtype=torch.long) * torch.ones(input_ids.shape, dtype=torch.long))
 
-    image_position_ids = torch.arange(1, patches.shape[1]) * torch.ones(patches.shape[0])
-    image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]))
+    image_position_ids = torch.arange(1, patches.shape[1]+1, dtype=torch.long).view(-1, 1) * torch.ones(patches.shape[0], dtype=torch.long)
+    image_position_ids = image_position_ids.T
+    image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]), dtype=torch.long)
 
-    image_position_embeds = fashion_bert.position_embeddings(image_position_ids)
-    image_token_type_embeds = fashion_bert.token_type_embeddings(image_token_type_ids)
+    image_position_embeds = fashion_bert.bert.embeddings.position_embeddings(image_position_ids)
+    image_token_type_embeds = fashion_bert.bert.embeddings.token_type_embeddings(image_token_type_ids)
 
     # transforms patches into batch size, im sequence length, 768
     im_seq_len = patches.shape[1]
@@ -80,7 +81,7 @@ class MultiModalBertDataset(Dataset):
 
         # list of dicts giving img name, sentence, 
         # and whether the sentence is paired or not
-        self.data_dict = open_json(self.data_dict_path)
+        self.data_dict = open_json(data_dict_path)
 
         self.patch_size = patch_size
         self.img_size = img_size
@@ -90,9 +91,10 @@ class MultiModalBertDataset(Dataset):
         self.im_encoder.to(device)
         
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.device = device
 
     def __len__(self):
-        return len(self.img_to_sent)
+        return len(self.data_dict)
 
     def __getitem__(self, index):
         sample = self.data_dict[index]
@@ -117,18 +119,17 @@ class MultiModalBertDataset(Dataset):
         with torch.no_grad():
             for i in range(img.shape[1] // self.patch_size):
                 for j in range(img.shape[2] // self.patch_size):
-                    patches.append(self.im_encoder(img[:, 
+                    encoded_patch = self.im_encoder(img[:, 
                                             i*self.patch_size:(i+1)*self.patch_size, 
-                                            j*self.patch_size:(j+1)*self.patch_size]
-                                            .reshape(
-                                                (1, img.shape[0], self.img_size, self.img_size
-                                                )))[0])
+                                            j*self.patch_size:(j+1)*self.patch_size].reshape(1, img.shape[0], self.patch_size, self.patch_size))
+                    patches.append(encoded_patch[0])
         
         tokens = self.tokenizer(
             "".join([s + ' ' for s in text[0]]),
             max_length = 50,
             truncation = True,
-            return_tensors = 'pt')            
+            return_tensors = 'pt',
+            padding=True)
 
     
-        return torch.tensor(patches, device=self.device), tokens['input_ids'], torch.tensor(is_paired, device=self.device)
+        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired)
