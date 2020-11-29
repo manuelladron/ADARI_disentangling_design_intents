@@ -130,6 +130,5 @@ class MultiModalBertDataset(Dataset):
             truncation = True,
             return_tensors = 'pt',
             padding=True)
-
     
         return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired)

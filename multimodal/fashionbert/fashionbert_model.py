@@ -49,6 +49,10 @@ class FashionBert(transformers.BertPreTrainedModel):
                     bool tensor, Whether the sample is aligned with the sentence
                         batch size, 1
         """
+        batch_size = embeds.shape[0]
+        seq_length = embeds.shape[1]
+        hidden_dim = embeds.shape[2]
+
 
         outputs = self.bert(inputs_embeds=embeds, return_dict=True)
         sequence_output = outputs.last_hidden_state

@@ -2,3 +2,4 @@
 *.pth
 *.json
 *.ipynb_checkpoints*
+*__pycache__/*
