@@ -121,14 +121,14 @@ class MultiModalBertDataset(Dataset):
                 for j in range(img.shape[2] // self.patch_size):
                     encoded_patch = self.im_encoder(img[:, 
                                             i*self.patch_size:(i+1)*self.patch_size, 
-                                            j*self.patch_size:(j+1)*self.patch_size].reshape(1, img.shape[0], self.patch_size, self.patch_size))
+                                            j*self.patch_size:(j+1)*self.patch_size].reshape(1, img.shape[0], self.patch_size, self.patch_size).to(self.device))
                     patches.append(encoded_patch[0])
         
         tokens = self.tokenizer(
             "".join([s + ' ' for s in text[0]]),
-            max_length = 50,
+            max_length = 448,
             truncation = True,
-            return_tensors = 'pt',
-            padding=True)
+            padding = 'max_length',
+            return_tensors = 'pt')
     
-        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired)
+        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0]
