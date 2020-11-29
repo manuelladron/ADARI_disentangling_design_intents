@@ -21,11 +21,9 @@ class FashionBert(transformers.BertPreTrainedModel):
 
         self.bert = BertModel(config)
 
-        self.im_patch_fc = torch.nn.Sequential(
-            torch.nn.Linear(2048, 768),
-            torch.nn.LeakyReLU()
-        )
-
+        self.im_to_embedding = torch.nn.Linear(2048, 768)
+        self.im_embedding_to_im = torch.nn.Linear(768, 2048)
+        
         self.cls = BertPreTrainingHeads(config)
         self.init_weights()
 
@@ -61,30 +59,30 @@ class FashionBert(transformers.BertPreTrainedModel):
         # hidden states corresponding to the image part
         image_output = sequence_output[:, labels.shape[1]:, :]
 
-        print(f"Text output: {text_output.shape}")
-        print(f"Image output: {image_output.shape}")
-
+        # Predict the masked text tokens and alignment scores (whether image, text match)
         prediction_scores, alignment_scores = self.cls(text_output, pooler_output)
 
-        masked_lm_loss = None
-        if labels is not None:
-            loss_fct = torch.nn.CrossEntropyLoss()  # -100 index = padding token
-            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
 
-        masked_patch_loss = None
-        if unmasked_patch_features is not None:
-            pred_probs = torch.nn.LogSoftmax(dim=2)(image_output)
-            true_probs = torch.nn.LogSoftmax(dim=2)(unmasked_patch_features)
-            print(pred_probs.shape)
-            print(true_probs.shape)
-            loss_fct = torch.nn.KLDivLoss()
-            masked_patch_loss = loss_fct(true_probs, pred_probs)
+        # Compute masked language loss
+        loss_fct = torch.nn.CrossEntropyLoss()  # -100 index = padding token
+        masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+
+
+        # Compute masked patch reconstruction loss
+        # Project outputs into feature space
+        predicted_features = self.im_embedding_to_im(image_output.view(-1, image_output.shape[2]))
+
+        pred_probs = torch.nn.LogSoftmax(dim=2)(predicted_features)
+        true_probs = torch.nn.LogSoftmax(dim=2)(unmasked_patch_features.view(-1, unmasked_patch_features.shape[2]))
+        loss_fct = torch.nn.KLDivLoss()
+        masked_patch_loss = loss_fct(true_probs, pred_probs)
         
-        alignment_loss = None
-        if is_paired is not None:
-            loss_fct = torch.nn.CrossEntropyLoss()
-            alignment_loss = loss_fct(seq_relationship_scores.view(-1, 2), is_paired.double().view(-1))
+
+        # Compute alignment loss
+        loss_fct = torch.nn.CrossEntropyLoss()
+        alignment_loss = loss_fct(seq_relationship_scores.view(-1, 2), is_paired.double().view(-1))
             
+
         return {
             "raw_outputs": outputs, 
             "masked_lm_loss": masked_lm_loss,
