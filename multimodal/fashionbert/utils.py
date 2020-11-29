@@ -41,7 +41,7 @@ def construct_bert_input(patches, input_ids, fashion_bert):
     # transforms patches into batch size, im sequence length, 768
     im_seq_len = patches.shape[1]
     patches = patches.view(-1, patches.shape[2])
-    patches = fashion_bert.im_patch_fc(patches)
+    patches = fashion_bert.im_to_embedding(patches)
     # now shape batch size, im sequence length, 768
     patches = patches.view(word_embeddings.shape[0], im_seq_len, -1)
 
