@@ -40,6 +40,8 @@ class FashionBert(transformers.BertPreTrainedModel):
                 embeds
                     hidden embeddings to pass to the bert model
                         batch size, seq length, hidden dim
+                attention_mask
+                    batch size, seq length
                 labels
                     Unmasked tokenized token ids
                         batch size, word sequence length
@@ -145,9 +147,13 @@ def train(fashion_bert, dataset, params, device):
             # pad attention mask with 1s so model pays attention to the image parts
             attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
 
-            assert(attention_mask.shape[1] == embeds.shape[1])
-            
-            outputs = fashion_bert(embeds, input_ids, patches, attention_mask, is_paired)
+            outputs = fashion_bert(
+                embeds=embeds, 
+                attention_mask=attention_mask, 
+                labels=input_ids, 
+                unmasked_patch_features=patches, 
+                is_paired=is_paired
+                )
 
             loss = (1. / 3.) * outputs['masked_lm_loss'] \
                 + (1. / 3.) * outputs['masked_patch_loss'] \
