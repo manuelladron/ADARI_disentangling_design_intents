@@ -85,8 +85,8 @@ class FashionBert(transformers.BertPreTrainedModel):
         # Project outputs into feature space
         predicted_features = self.im_embedding_to_im(image_output_aligned.view(-1, image_output_aligned.shape[2]))
 
-        pred_probs = torch.nn.LogSoftmax(dim=2)(predicted_features)
-        true_probs = torch.nn.LogSoftmax(dim=2)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
+        pred_probs = torch.nn.LogSoftmax(dim=1)(predicted_features)
+        true_probs = torch.nn.LogSoftmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
         loss_fct = torch.nn.KLDivLoss()
         masked_patch_loss = loss_fct(true_probs, pred_probs)
         
