@@ -16,7 +16,7 @@ def adaptive_loss(outputs):
         nG = torch.sqrt(torch.nn.LogSoftmax(dim=0)(G))
         alpha = 1.0
         K = 3.0
-        denominator = (alpha * K - nG[0]) * (alpha * K - nG[1]) + (alpha * K - nG[1]) * (alpha * K - nG[2]) +                     (alpha * K - nG[2]) * (alpha * K - nG[0])
+        denominator = (alpha * K - nG[0]) * (alpha * K - nG[1]) + (alpha * K - nG[1]) * (alpha * K - nG[2]) + (alpha * K - nG[2]) * (alpha * K - nG[0])
         w0 = (alpha * K - nG[1]) * (alpha * K - nG[2]) / denominator
         w1 = (alpha * K - nG[2]) * (alpha * K - nG[0]) / denominator
         w2 = (alpha * K - nG[0]) * (alpha * K - nG[1]) / denominator
