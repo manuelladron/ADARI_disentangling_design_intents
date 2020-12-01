@@ -8,9 +8,10 @@ import transformers
 from transformers import AdamW
 from transformers import BertTokenizer, BertModel
 from transformers.modeling_bert import BertPreTrainingHeads
-from utils import construct_bert_input, MultiModalBertDataset, PreprocessedADARI
+from utils import construct_bert_input, MultiModalBertDataset, PreprocessedADARI, save_json
 from transformers import get_linear_schedule_with_warmup
 import argparse
+import datetime
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -103,7 +104,7 @@ class FashionBert(transformers.BertPreTrainedModel):
             "alignment_loss": alignment_loss
             }
 
-1
+
 def train(fashion_bert, dataset, params, device):
     dataloader = torch.utils.data.DataLoader(
         dataset, 
@@ -206,4 +207,9 @@ if __name__ == '__main__':
     try:
         train(fashion_bert, dataset, params, device)
     except KeyboardInterrupt:
-        fashion_bert.save_pretrained('pretrained_fashionbert')
+        pass
+    model_time = datetime.datetime.now().strftime("%x::%X")
+    model_name = f"fashionbert_{model_time}"
+    print(f"Saving trained model to directory {model_name}...")
+    fashion_bert.save_pretrained(model_name)
+    save_json(f"{model_name}/train_params.json", params.__dict__)
