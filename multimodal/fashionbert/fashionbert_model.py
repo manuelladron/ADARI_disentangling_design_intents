@@ -82,7 +82,7 @@ class FashionBert(transformers.BertPreTrainedModel):
         # Compute masked patch reconstruction loss
         # Only look at aligned images
         image_output_aligned = image_output[is_paired.view(-1)]
-        unmasked_patch_features_aligned = unmasked_patch_features[image_output.view(-1)]
+        unmasked_patch_features_aligned = unmasked_patch_features[is_paired.view(-1)]
         # Project outputs into feature space
         predicted_features = self.im_embedding_to_im(image_output_aligned.view(-1, image_output_aligned.shape[2]))
 
