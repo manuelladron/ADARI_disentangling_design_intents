@@ -6,6 +6,8 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 import transformers
 from transformers import BertTokenizer
+import pandas as pd 
+import pickle
 
 
 def open_json(path):
@@ -132,3 +134,27 @@ class MultiModalBertDataset(Dataset):
             return_tensors = 'pt')
     
         return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0]
+
+
+class PreprocessedADARI(Dataset):
+    def __init__(self, path_to_dataset):
+        super(PreprocessedADARI).__init__()
+        self.path_to_dataset = path_to_dataset
+
+        self.dataset = pickle.load(self.path_to_dataset)
+
+    def __len__(self):
+        return len(self.dataset)
+
+
+    def __get_item__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        sample = self.dataset.iloc[idx]
+
+        return (
+            torch.tensor(sample.patches).view(sample.patches.shape[0], sample.patches.shape[1]), 
+            torch.tensor(sample.input_ids),
+            torch.tensor(sample.is_paired),
+            torch.tensor(sample.attention_mask)
+            )

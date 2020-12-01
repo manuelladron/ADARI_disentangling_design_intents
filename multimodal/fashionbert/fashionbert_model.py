@@ -8,7 +8,7 @@ import transformers
 from transformers import AdamW
 from transformers import BertTokenizer, BertModel
 from transformers.modeling_bert import BertPreTrainingHeads
-from utils import construct_bert_input, MultiModalBertDataset
+from utils import construct_bert_input, MultiModalBertDataset, PreprocessedADARI
 from transformers import get_linear_schedule_with_warmup
 import argparse
 
@@ -178,18 +178,20 @@ class TrainParams:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train FashionBert.')
-    parser.add_argument('--path_to_images', help='Absolute path to image directory', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/v2/full')
-    parser.add_argument('--path_to_data_dict', help='Absolute path to json containing img name, sentence pair dict', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/ADARI_furniture_pairs.json')
+    #parser.add_argument('--path_to_images', help='Absolute path to image directory', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/v2/full')
+    #parser.add_argument('--path_to_data_dict', help='Absolute path to json containing img name, sentence pair dict', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/ADARI_furniture_pairs.json')
+    parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file')
     args = parser.parse_args()
 
     params = TrainParams()
 
     fashion_bert = FashionBert.from_pretrained('bert-base-uncased', return_dict=True)
-    dataset = MultiModalBertDataset(
-        args.path_to_images, 
-        args.path_to_data_dict,
-        device=device,
-        )
+    #dataset = MultiModalBertDataset(
+    #    args.path_to_images, 
+    #    args.path_to_data_dict,
+    #    device=device,
+    #    )
+    dataset = PreprocessedADARI(args.path_to_dataset)
 
     try:
         train(fashion_bert, dataset, params, device)
