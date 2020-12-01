@@ -30,6 +30,7 @@ class FashionBert(transformers.BertPreTrainedModel):
     def forward(
         self,
         embeds,
+        attention_mask,
         labels=None,
         unmasked_patch_features=None,
         is_paired=None,
@@ -39,6 +40,8 @@ class FashionBert(transformers.BertPreTrainedModel):
                 embeds
                     hidden embeddings to pass to the bert model
                         batch size, seq length, hidden dim
+                attention_mask
+                    batch size, seq length
                 labels
                     Unmasked tokenized token ids
                         batch size, word sequence length
@@ -65,19 +68,25 @@ class FashionBert(transformers.BertPreTrainedModel):
 
         # Predict the masked text tokens and alignment scores (whether image, text match)
         prediction_scores, alignment_scores = self.cls(text_output, pooler_output)
+        # We only want to compute masked losses w.r.t. aligned samples
+        pred_scores_aligned = prediction_scores[is_paired.view(-1)]
+        labels_aligned = labels[is_paired.view(-1)]
 
 
         # Compute masked language loss
         loss_fct = torch.nn.CrossEntropyLoss()  # -100 index = padding token
-        masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+        masked_lm_loss = loss_fct(pred_scores_aligned.view(-1, self.config.vocab_size), labels_aligned.view(-1))
 
 
         # Compute masked patch reconstruction loss
+        # Only look at aligned images
+        image_output_aligned = image_output[is_paired.view(-1)]
+        unmasked_patch_features_aligned = unmasked_patch_features[image_output.view(-1)]
         # Project outputs into feature space
-        predicted_features = self.im_embedding_to_im(image_output.view(-1, image_output.shape[2]))
+        predicted_features = self.im_embedding_to_im(image_output_aligned.view(-1, image_output_aligned.shape[2]))
 
-        pred_probs = torch.nn.LogSoftmax(dim=2)(predicted_features)
-        true_probs = torch.nn.LogSoftmax(dim=2)(unmasked_patch_features.view(-1, unmasked_patch_features.shape[2]))
+        pred_probs = torch.nn.LogSoftmax(dim=1)(predicted_features)
+        true_probs = torch.nn.LogSoftmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
         loss_fct = torch.nn.KLDivLoss()
         masked_patch_loss = loss_fct(true_probs, pred_probs)
         
@@ -94,7 +103,7 @@ class FashionBert(transformers.BertPreTrainedModel):
             "alignment_loss": alignment_loss
             }
 
-
+1
 def train(fashion_bert, dataset, params, device):
     dataloader = torch.utils.data.DataLoader(
         dataset, 
@@ -113,12 +122,11 @@ def train(fashion_bert, dataset, params, device):
     scheduler = get_linear_schedule_with_warmup(opt, params.num_warmup_steps, params.num_epochs * len(dataloader))
 
     for _ in range(params.num_epochs):
-        for patches, input_ids, is_paired in dataloader:
+        for patches, input_ids, is_paired, attention_mask in dataloader:
             patches = patches.to(device)
             input_ids = input_ids.to(device)
             is_paired = is_paired.to(device)
-
-            print(f"Input id shape: {input_ids.shape}")
+            attention_mask = attention_mask.to(device)
 
             opt.zero_grad()
 
@@ -136,7 +144,16 @@ def train(fashion_bert, dataset, params, device):
             masked_input_ids[token_mask < 0.15] = 103
 
             embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert)
-            outputs = fashion_bert(embeds, input_ids, patches, is_paired)
+            # pad attention mask with 1s so model pays attention to the image parts
+            attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
+
+            outputs = fashion_bert(
+                embeds=embeds, 
+                attention_mask=attention_mask, 
+                labels=input_ids, 
+                unmasked_patch_features=patches, 
+                is_paired=is_paired
+                )
 
             loss = (1. / 3.) * outputs['masked_lm_loss'] \
                 + (1. / 3.) * outputs['masked_patch_loss'] \
