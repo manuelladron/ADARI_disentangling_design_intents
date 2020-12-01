@@ -121,7 +121,8 @@ def train(fashion_bert, dataset, params, device):
         )
     scheduler = get_linear_schedule_with_warmup(opt, params.num_warmup_steps, params.num_epochs * len(dataloader))
 
-    for _ in range(params.num_epochs):
+    for ep in range(params.num_epochs):
+        avg_losses = {"masked_lm_loss": [], "masked_patch_loss": [], "alignment_loss": [], "total": []}
         for patches, input_ids, is_paired, attention_mask in dataloader:
             patches = patches.to(device)
             input_ids = input_ids.to(device)
@@ -159,12 +160,21 @@ def train(fashion_bert, dataset, params, device):
                 + (1. / 3.) * outputs['masked_patch_loss'] \
                 + (1. / 3.) * outputs['alignment_loss']
 
+            
+
             loss.backward()
             opt.step()
             scheduler.step()
 
-            print("one step")
-
+            for k, v in outputs.items():
+                avg_losses[k].append(v.cpu().item())
+            avg_losses[total].append(loss.cpu().item())
+        
+        print("***************************")
+        print(f"At epoch {ep+1}, losses: ")
+        for k, v in avg_losses.items():
+            print(f"{k}: {sum(v) / len(v)}")
+        print("***************************")
 
 class TrainParams:
     lr = 2e-5
