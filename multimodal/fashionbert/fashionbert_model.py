@@ -16,6 +16,23 @@ import datetime
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+class FashionBertHead(torch.nn.Module):
+    def __init__(self, config):
+        super().__init__()
+
+        self.im_dense = torch.nn.Linear(768, 2048)
+        self.act_func = torch.nn.LeakyReLU()
+        self.layer_norm = torch.nn.LayerNorm(2048, eps=config.layer_norm_eps)
+
+    def forward(self, im_output):
+        batch_size = im_output.shape[0]
+        seq_len = im_output.shape[1]
+
+        h = self.im_dense(im_output.reshape(-1, im_output.shape[2]))
+        h = self.act_func(h)
+        h = self.layer_norm(h)
+
+        return h.view(batch_size, seq_len, -1)
 
 class FashionBert(transformers.BertPreTrainedModel):
     def __init__(self, config):
@@ -25,9 +42,10 @@ class FashionBert(transformers.BertPreTrainedModel):
 
         self.im_to_embedding = torch.nn.Linear(2048, 768)
         self.im_to_embedding_norm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.im_embedding_to_im = torch.nn.Linear(768, 2048)
         
         self.cls = BertPreTrainingHeads(config)
+        self.im_head = FashionBertHead(config)
+
         self.init_weights()
 
     def forward(
@@ -72,6 +90,7 @@ class FashionBert(transformers.BertPreTrainedModel):
 
         # Predict the masked text tokens and alignment scores (whether image, text match)
         prediction_scores, alignment_scores = self.cls(text_output, pooler_output)
+        im_scores = self.im_head(image_output)
         # We only want to compute masked losses w.r.t. aligned samples
         pred_scores_aligned = prediction_scores[is_paired.view(-1)]
         labels_aligned = labels[is_paired.view(-1)]
@@ -86,16 +105,14 @@ class FashionBert(transformers.BertPreTrainedModel):
 
         # Compute masked patch reconstruction loss
         # Only look at aligned images
-        image_output_aligned = image_output[is_paired.view(-1)]
+        image_output_aligned = im_scores[is_paired.view(-1)]
         if image_output_aligned.shape[0] > 0:
             unmasked_patch_features_aligned = unmasked_patch_features[is_paired.view(-1)]
-            # Project outputs into feature space
-            predicted_features = self.im_embedding_to_im(image_output_aligned.view(-1, image_output_aligned.shape[2]))
 
-            pred_probs = torch.nn.LogSoftmax(dim=1)(predicted_features)
-            true_probs = torch.nn.LogSoftmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
+            pred_probs = torch.nn.LogSoftmax(dim=1)(image_output_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
+            true_probs = torch.nn.Softmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
             loss_fct = torch.nn.KLDivLoss(reduction='batchmean')
-            masked_patch_loss = loss_fct(true_probs, pred_probs)
+            masked_patch_loss = loss_fct(pred_probs, true_probs)
         else:
             masked_patch_loss = torch.tensor(0.0).to(self.device)
         
@@ -182,10 +199,6 @@ def train(fashion_bert, dataset, params, device):
                 if k in avg_losses:
                     avg_losses[k].append(v.cpu().item())
             avg_losses["total"].append(loss.cpu().item())
-            print(outputs['masked_lm_loss'].cpu())
-            print(outputs['masked_patch_loss'].cpu())
-            print(outputs['alignment_loss'].cpu())
-            print('\n\n')
         
         print("***************************")
         print(f"At epoch {ep+1}, losses: ")
@@ -228,5 +241,5 @@ if __name__ == '__main__':
     model_time = datetime.datetime.now().strftime("%X")
     model_name = f"fashionbert_{model_time}"
     print(f"Saving trained model to directory {model_name}...")
-    #fashion_bert.save_pretrained(model_name)
-    #save_json(f"{model_name}/train_params.json", params.__dict__)
+    fashion_bert.save_pretrained(model_name)
+    save_json(f"{model_name}/train_params.json", params.__dict__)
