@@ -131,8 +131,12 @@ class FashionBert(transformers.BertPreTrainedModel):
 
 
 def train(fashion_bert, dataset, params, device):
+    torch.manual_seed(0)
+    train_size = int(len(dataset) * .8)
+    test_size = len(dataset) - train_size
+    train_set, test_set = torch.utils.data.random_split(dataset, [train_size, test_size])
     dataloader = torch.utils.data.DataLoader(
-        dataset, 
+        train_set, 
         batch_size=params.batch_size, 
         shuffle=True,
         )
