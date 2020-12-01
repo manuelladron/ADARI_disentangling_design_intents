@@ -75,8 +75,7 @@ class FashionBert(transformers.BertPreTrainedModel):
         # We only want to compute masked losses w.r.t. aligned samples
         pred_scores_aligned = prediction_scores[is_paired.view(-1)]
         labels_aligned = labels[is_paired.view(-1)]
-
-
+    
         # Compute masked language loss
         loss_fct = torch.nn.CrossEntropyLoss()  # -100 index = padding token
         if labels_aligned.shape[0] > 0:
@@ -153,6 +152,9 @@ def train(fashion_bert, dataset, params, device):
             token_mask = torch.rand(input_ids.shape)
             masked_input_ids = input_ids.detach().clone()
             masked_input_ids[token_mask < 0.15] = 103
+
+            input_ids[token_mask >= 0.15] = -100
+            input_ids[attention_mask == 0] = -100
 
             embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert, device=device)
             # pad attention mask with 1s so model pays attention to the image parts
