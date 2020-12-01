@@ -23,33 +23,33 @@ def save_json(file_path, data):
 
 
 
-def construct_bert_input(patches, input_ids, fashion_bert):
+def construct_bert_input(patches, input_ids, fashion_bert, device=None):
     # patches shape: batch size, im sequence length, embedding size
     # input_ids shape: batch size, sentence length
 
     # shape: batch size, sequence length, embedding size
     word_embeddings = fashion_bert.bert.embeddings(
-        input_ids, 
-        token_type_ids=torch.zeros(input_ids.shape, dtype=torch.long), 
-        position_ids=torch.arange(0, input_ids.shape[1], dtype=torch.long) * torch.ones(input_ids.shape, dtype=torch.long))
+        input_ids.to(device), 
+        token_type_ids=torch.zeros(input_ids.shape, dtype=torch.long).to(device), 
+        position_ids=torch.arange(0, input_ids.shape[1], dtype=torch.long).to(device) * torch.ones(input_ids.shape, dtype=torch.long).to(device))
 
     image_position_ids = torch.arange(1, patches.shape[1]+1, dtype=torch.long).view(-1, 1) * torch.ones(patches.shape[0], dtype=torch.long)
     image_position_ids = image_position_ids.T
     image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]), dtype=torch.long)
 
-    image_position_embeds = fashion_bert.bert.embeddings.position_embeddings(image_position_ids)
-    image_token_type_embeds = fashion_bert.bert.embeddings.token_type_embeddings(image_token_type_ids)
+    image_position_embeds = fashion_bert.bert.embeddings.position_embeddings(image_position_ids.to(device))
+    image_token_type_embeds = fashion_bert.bert.embeddings.token_type_embeddings(image_token_type_ids.to(device))
 
     # transforms patches into batch size, im sequence length, 768
     im_seq_len = patches.shape[1]
     patches = patches.view(-1, patches.shape[2])
-    patches = fashion_bert.im_to_embedding(patches)
+    patches = fashion_bert.im_to_embedding(patches.to(device))
     # now shape batch size, im sequence length, 768
     patches = patches.view(word_embeddings.shape[0], im_seq_len, -1)
 
     # shape: batch size, im sequence length, embedding size
     image_embeddings = patches + image_position_embeds + image_token_type_embeds
-
+    image_embeddings = fashion_bert.im_to_embedding_norm(image_embeddings)
     return torch.cat((word_embeddings, image_embeddings), dim=1)
 
 
@@ -140,14 +140,15 @@ class PreprocessedADARI(Dataset):
     def __init__(self, path_to_dataset):
         super(PreprocessedADARI).__init__()
         self.path_to_dataset = path_to_dataset
-
-        self.dataset = pickle.load(self.path_to_dataset)
+        
+        f = open(self.path_to_dataset, "rb")
+        self.dataset = pickle.load(f)
 
     def __len__(self):
         return len(self.dataset)
 
 
-    def __get_item__(self, idx):
+    def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         sample = self.dataset.iloc[idx]

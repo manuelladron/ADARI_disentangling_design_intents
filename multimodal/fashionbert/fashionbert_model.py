@@ -1,4 +1,5 @@
 import torch, torchvision
+import sys
 import json
 import torch.nn.functional as F
 import PIL
@@ -7,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 import transformers
 from transformers import AdamW
 from transformers import BertTokenizer, BertModel
-from transformers.modeling_bert import BertPreTrainingHeads
+from transformers.models.bert.modeling_bert import BertPreTrainingHeads
 from utils import construct_bert_input, MultiModalBertDataset, PreprocessedADARI, save_json
 from transformers import get_linear_schedule_with_warmup
 import argparse
@@ -23,6 +24,7 @@ class FashionBert(transformers.BertPreTrainedModel):
         self.bert = BertModel(config)
 
         self.im_to_embedding = torch.nn.Linear(2048, 768)
+        self.im_to_embedding_norm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.im_embedding_to_im = torch.nn.Linear(768, 2048)
         
         self.cls = BertPreTrainingHeads(config)
@@ -59,6 +61,7 @@ class FashionBert(transformers.BertPreTrainedModel):
 
 
         outputs = self.bert(inputs_embeds=embeds, return_dict=True)
+
         sequence_output = outputs.last_hidden_state
         pooler_output = outputs.pooler_output
 
@@ -76,25 +79,31 @@ class FashionBert(transformers.BertPreTrainedModel):
 
         # Compute masked language loss
         loss_fct = torch.nn.CrossEntropyLoss()  # -100 index = padding token
-        masked_lm_loss = loss_fct(pred_scores_aligned.view(-1, self.config.vocab_size), labels_aligned.view(-1))
+        if labels_aligned.shape[0] > 0:
+            masked_lm_loss = loss_fct(pred_scores_aligned.view(-1, self.config.vocab_size), labels_aligned.view(-1))
+        else:
+            masked_lm_loss = torch.tensor(0.0).to(self.device)
 
 
         # Compute masked patch reconstruction loss
         # Only look at aligned images
         image_output_aligned = image_output[is_paired.view(-1)]
-        unmasked_patch_features_aligned = unmasked_patch_features[is_paired.view(-1)]
-        # Project outputs into feature space
-        predicted_features = self.im_embedding_to_im(image_output_aligned.view(-1, image_output_aligned.shape[2]))
+        if image_output_aligned.shape[0] > 0:
+            unmasked_patch_features_aligned = unmasked_patch_features[is_paired.view(-1)]
+            # Project outputs into feature space
+            predicted_features = self.im_embedding_to_im(image_output_aligned.view(-1, image_output_aligned.shape[2]))
 
-        pred_probs = torch.nn.LogSoftmax(dim=1)(predicted_features)
-        true_probs = torch.nn.LogSoftmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
-        loss_fct = torch.nn.KLDivLoss()
-        masked_patch_loss = loss_fct(true_probs, pred_probs)
+            pred_probs = torch.nn.LogSoftmax(dim=1)(predicted_features)
+            true_probs = torch.nn.LogSoftmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
+            loss_fct = torch.nn.KLDivLoss()
+            masked_patch_loss = loss_fct(true_probs, pred_probs)
+        else:
+            masked_patch_loss = torch.tensor(0.0).to(self.device)
         
 
         # Compute alignment loss
         loss_fct = torch.nn.CrossEntropyLoss()
-        alignment_loss = loss_fct(seq_relationship_scores.view(-1, 2), is_paired.double().view(-1))
+        alignment_loss = loss_fct(alignment_scores.view(-1, 2), is_paired.long().view(-1))
             
 
         return {
@@ -125,16 +134,11 @@ def train(fashion_bert, dataset, params, device):
     for ep in range(params.num_epochs):
         avg_losses = {"masked_lm_loss": [], "masked_patch_loss": [], "alignment_loss": [], "total": []}
         for patches, input_ids, is_paired, attention_mask in dataloader:
-            patches = patches.to(device)
-            input_ids = input_ids.to(device)
-            is_paired = is_paired.to(device)
-            attention_mask = attention_mask.to(device)
-
             opt.zero_grad()
 
             # mask image patches with prob 10%
             im_seq_len = patches.shape[1]
-            masked_patches = patches.detach().clone().to(device)
+            masked_patches = patches.detach().clone()
             masked_patches = masked_patches.view(-1, patches.shape[2])
             im_mask = torch.rand((masked_patches.shape[0], 1)) >= 0.1
             masked_patches *= im_mask
@@ -142,25 +146,25 @@ def train(fashion_bert, dataset, params, device):
 
             # mask tokens with prob 15%, note id 103 is the [MASK] token
             token_mask = torch.rand(input_ids.shape)
-            masked_input_ids = input_ids.detach().clone().to(device)
+            masked_input_ids = input_ids.detach().clone()
             masked_input_ids[token_mask < 0.15] = 103
 
-            embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert)
+            embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert, device=device)
             # pad attention mask with 1s so model pays attention to the image parts
             attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
 
+
             outputs = fashion_bert(
-                embeds=embeds, 
-                attention_mask=attention_mask, 
-                labels=input_ids, 
-                unmasked_patch_features=patches, 
-                is_paired=is_paired
+                embeds=embeds.to(device), 
+                attention_mask=attention_mask.to(device), 
+                labels=input_ids.to(device), 
+                unmasked_patch_features=patches.to(device), 
+                is_paired=is_paired.to(device)
                 )
 
             loss = (1. / 3.) * outputs['masked_lm_loss'] \
                 + (1. / 3.) * outputs['masked_patch_loss'] \
                 + (1. / 3.) * outputs['alignment_loss']
-
             
 
             loss.backward()
@@ -168,8 +172,10 @@ def train(fashion_bert, dataset, params, device):
             scheduler.step()
 
             for k, v in outputs.items():
-                avg_losses[k].append(v.cpu().item())
-            avg_losses[total].append(loss.cpu().item())
+                if k in avg_losses:
+                    avg_losses[k].append(v.cpu().item())
+            avg_losses["total"].append(loss.cpu().item())
+            print(outputs['masked_lm_loss'].cpu())
         
         print("***************************")
         print(f"At epoch {ep+1}, losses: ")
@@ -179,7 +185,7 @@ def train(fashion_bert, dataset, params, device):
 
 class TrainParams:
     lr = 2e-5
-    batch_size = 64
+    batch_size = 4
     beta1 = 0.95
     beta2 = .999
     weight_decay = 1e-4
@@ -191,7 +197,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train FashionBert.')
     #parser.add_argument('--path_to_images', help='Absolute path to image directory', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/v2/full')
     #parser.add_argument('--path_to_data_dict', help='Absolute path to json containing img name, sentence pair dict', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/ADARI_furniture_pairs.json')
-    parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file')
+    parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file', default='/home/ubuntu/preprocessed_patches.pkl')
     args = parser.parse_args()
 
     params = TrainParams()
@@ -208,7 +214,7 @@ if __name__ == '__main__':
         train(fashion_bert, dataset, params, device)
     except KeyboardInterrupt:
         pass
-    model_time = datetime.datetime.now().strftime("%x::%X")
+    model_time = datetime.datetime.now().strftime("%X")
     model_name = f"fashionbert_{model_time}"
     print(f"Saving trained model to directory {model_name}...")
     fashion_bert.save_pretrained(model_name)
