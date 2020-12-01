@@ -40,7 +40,7 @@ dataset = MultiModalBertDataset(IMG_PATH, PAIRS_PATH, device=device)
 dataloader = DataLoader(dataset, batch_size=64, shuffle=False, drop_last=False)
 
 df = pd.DataFrame(columns=["patches", "input_ids", "is_paired", "attention_mask"])
-for i, (patches, input_ids, is_paired, attention_mask) in enumerate(dataloader):
+for j, (patches, input_ids, is_paired, attention_mask) in enumerate(dataloader):
     for i in range(patches.shape[0]):
         df = df.append(
             {
@@ -51,8 +51,9 @@ for i, (patches, input_ids, is_paired, attention_mask) in enumerate(dataloader):
             },
             ignore_index=True
         )
-    if i % 10 == 0:
-        print(f"At batch # {i}")
+        print(f"Finished sample")
+    if j % 10 == 0:
+        print(f"At batch # {j}")
     
 
 
