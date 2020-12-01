@@ -28,10 +28,11 @@ def construct_bert_input(patches, input_ids, fashion_bert, device=None):
     # input_ids shape: batch size, sentence length
 
     # shape: batch size, sequence length, embedding size
-    word_embeddings = fashion_bert.bert.embeddings(
-        input_ids.to(device), 
-        token_type_ids=torch.zeros(input_ids.shape, dtype=torch.long).to(device), 
-        position_ids=torch.arange(0, input_ids.shape[1], dtype=torch.long).to(device) * torch.ones(input_ids.shape, dtype=torch.long).to(device))
+    #word_embeddings = fashion_bert.bert.embeddings(
+    #    input_ids.to(device), 
+    #    token_type_ids=torch.zeros(input_ids.shape, dtype=torch.long).to(device), 
+    #    position_ids=torch.arange(0, input_ids.shape[1], dtype=torch.long).to(device) * torch.ones(input_ids.shape, dtype=torch.long).to(device))
+    word_embeddings = fashion_bert.bert.embeddings(input_ids.to(device))
 
     image_position_ids = torch.arange(1, patches.shape[1]+1, dtype=torch.long).view(-1, 1) * torch.ones(patches.shape[0], dtype=torch.long)
     image_position_ids = image_position_ids.T
@@ -50,6 +51,7 @@ def construct_bert_input(patches, input_ids, fashion_bert, device=None):
     # shape: batch size, im sequence length, embedding size
     image_embeddings = patches + image_position_embeds + image_token_type_embeds
     image_embeddings = fashion_bert.im_to_embedding_norm(image_embeddings)
+
     return torch.cat((word_embeddings, image_embeddings), dim=1)
 
 

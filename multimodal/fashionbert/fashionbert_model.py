@@ -95,7 +95,7 @@ class FashionBert(transformers.BertPreTrainedModel):
 
             pred_probs = torch.nn.LogSoftmax(dim=1)(predicted_features)
             true_probs = torch.nn.LogSoftmax(dim=1)(unmasked_patch_features_aligned.view(-1, unmasked_patch_features_aligned.shape[2]))
-            loss_fct = torch.nn.KLDivLoss()
+            loss_fct = torch.nn.KLDivLoss(reduction='batchmean')
             masked_patch_loss = loss_fct(true_probs, pred_probs)
         else:
             masked_patch_loss = torch.tensor(0.0).to(self.device)
@@ -123,12 +123,17 @@ def train(fashion_bert, dataset, params, device):
 
     fashion_bert.to(device)
     fashion_bert.train()
-    opt = AdamW(
+    opt = transformers.Adafactor(
         fashion_bert.parameters(), 
         lr=params.lr, 
-        betas=(params.beta1, params.beta2), 
-        weight_decay=params.weight_decay
+        beta1=params.beta1, 
+        weight_decay=params.weight_decay,
+        clip_threshold=params.clip,
+        relative_step=False,
+        scale_parameter=True,
+        warmup_init=False
         )
+
     scheduler = get_linear_schedule_with_warmup(opt, params.num_warmup_steps, params.num_epochs * len(dataloader))
 
     for ep in range(params.num_epochs):
@@ -176,6 +181,9 @@ def train(fashion_bert, dataset, params, device):
                     avg_losses[k].append(v.cpu().item())
             avg_losses["total"].append(loss.cpu().item())
             print(outputs['masked_lm_loss'].cpu())
+            print(outputs['masked_patch_loss'].cpu())
+            print(outputs['alignment_loss'].cpu())
+            print('\n\n')
         
         print("***************************")
         print(f"At epoch {ep+1}, losses: ")
@@ -191,6 +199,7 @@ class TrainParams:
     weight_decay = 1e-4
     num_warmup_steps = 5000
     num_epochs = 10
+    clip = 1.0
 
 
 if __name__ == '__main__':
@@ -217,5 +226,5 @@ if __name__ == '__main__':
     model_time = datetime.datetime.now().strftime("%X")
     model_name = f"fashionbert_{model_time}"
     print(f"Saving trained model to directory {model_name}...")
-    fashion_bert.save_pretrained(model_name)
-    save_json(f"{model_name}/train_params.json", params.__dict__)
+    #fashion_bert.save_pretrained(model_name)
+    #save_json(f"{model_name}/train_params.json", params.__dict__)
