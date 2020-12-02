@@ -167,7 +167,14 @@ def train(fashion_bert, dataset, params, device):
             masked_patches = masked_patches.view(-1, patches.shape[2])
             im_mask = torch.rand((masked_patches.shape[0], 1)) >= 0.1
             masked_patches *= im_mask
-            masked_patches = masked_patches.view(params.batch_size, im_seq_len, patches.shape[2])
+            try:
+                masked_patches = masked_patches.view(params.batch_size, im_seq_len, patches.shape[2])
+            except Exception as e:
+                print(e)
+                print(f"masked_patches: {masked_patches.shape}")
+                print(f"im_mask: {im_mask.shape}")
+                print(f"patches: {patches.shape}")
+                continue
 
             # mask tokens with prob 15%, note id 103 is the [MASK] token
             token_mask = torch.rand(input_ids.shape)
