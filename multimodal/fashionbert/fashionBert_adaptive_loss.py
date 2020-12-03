@@ -13,7 +13,7 @@ def adaptive_loss(outputs):
     w2 = 1.0
     isAdaptive = True
     if isAdaptive:
-        nG = torch.sqrt(torch.nn.LogSoftmax(dim=0)(G))
+        nG = torch.square(torch.nn.Softmax(dim=0)(G))
         alpha = 1.0
         K = 3.0
         denominator = (alpha * K - nG[0]) * (alpha * K - nG[1]) + (alpha * K - nG[1]) * (alpha * K - nG[2]) + (alpha * K - nG[2]) * (alpha * K - nG[0])
