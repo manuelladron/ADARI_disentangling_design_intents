@@ -40,14 +40,15 @@ dataset = MultiModalBertDataset(IMG_PATH, PAIRS_PATH, device=device)
 dataloader = DataLoader(dataset, batch_size=64, shuffle=False, drop_last=False)
 
 df = pd.DataFrame(columns=["patches", "input_ids", "is_paired", "attention_mask"])
-for j, (patches, input_ids, is_paired, attention_mask) in enumerate(dataloader):
+for j, (patches, input_ids, is_paired, attention_mask, img_name) in enumerate(dataloader):
     for i in range(patches.shape[0]):
         df = df.append(
             {
                 "patches": patches[i].cpu().numpy(),
                 "input_ids": input_ids[i].cpu().numpy(),
                 "is_paired": is_paired[i].cpu().numpy(),
-                "attention_mask": attention_mask[i].cpu().numpy()
+                "attention_mask": attention_mask[i].cpu().numpy(),
+                "img_name": img_name[i]
             },
             ignore_index=True
         )
