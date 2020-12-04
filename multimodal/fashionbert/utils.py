@@ -10,7 +10,6 @@ import pandas as pd
 import pickle
 import random
 
-
 def open_json(path):
     f = open(path) 
     data = json.load(f) 
@@ -21,8 +20,6 @@ def save_json(file_path, data):
     out_file = open(file_path, "w")
     json.dump(data, out_file)
     out_file.close()
-
-
 
 def construct_bert_input(patches, input_ids, fashion_bert, device=None):
     # patches shape: batch size, im sequence length, embedding size
@@ -136,76 +133,8 @@ class MultiModalBertDataset(Dataset):
             padding = 'max_length',
             return_tensors = 'pt')
     
-        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0]
-
-
-class FashionBertRandomPatchesDataset(Dataset):
-    def __init__(
-        self, 
-        path_to_images, 
-        data_dict_path,
-        num_patches = 64, 
-        img_size = 64,
-        device = None
-    ):
-        super(MultiModalBertDataset).__init__()
-        self.img_path = path_to_images
-
-        # list of dicts giving img name, sentence, 
-        # and whether the sentence is paired or not
-        self.data_dict = open_json(data_dict_path)
-
-        self.img_size = img_size
-        self.num_patches = num_patches
-
-        self.im_encoder = EncoderCNN()
-        self.im_encoder.eval()
-        self.im_encoder.to(device)
-
-        self.min_patch_dim = 4
-        self.max_patch_dim = 16
-        
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.device = device
-
-    def __len__(self):
-        return len(self.data_dict)
-
-    def __getitem__(self, index):
-        sample = self.data_dict[index]
-
-        image_name = sample['id']
-        text = sample['text']
-        is_paired = sample['label']
-        
-        name = self.img_path + "/" + image_name
-        img = Image.open(name)
-        
-        img = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(self.img_size),
-        torchvision.transforms.CenterCrop(self.img_size),
-        torchvision.transforms.ToTensor()])(img)
-        
-        patches = []
-        with torch.no_grad():
-            for _ in range(self.num_patches):
-                height = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
-                width = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
-
-                start_x = random.randrange(0, self.img_size - height)
-                start_y = random.randrange(0, self.img_size - width)
-
-                patch = img[:, start_x:start_x + height, start_y:start_y + height].to(self.device)
-                patches.append(self.im_encoder(patch.reshape(-1, patch.shape[0], patch.shape[1], patch.shape[2]))[0])
-        
-        tokens = self.tokenizer(
-            "".join([s + ' ' for s in text[0]]),
-            max_length = 448,
-            truncation = True,
-            padding = 'max_length',
-            return_tensors = 'pt')
-    
         return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
+
 
 class PreprocessedADARI(Dataset):
     def __init__(self, path_to_dataset):
@@ -229,4 +158,85 @@ class PreprocessedADARI(Dataset):
             torch.tensor(sample.input_ids),
             torch.tensor(sample.is_paired),
             torch.tensor(sample.attention_mask)
+            )
+    
+class PreprocessedADARI_evaluation(Dataset):
+    def __init__(self, path_to_images, path_to_dict_pairs):
+        super(PreprocessedADARI_evaluation).__init__()
+        self.dataset = MultiModalBertDataset(path_to_images, path_to_dict_pairs)
+        self.test_patches, self.test_ids, _, self.test_masks  = self.get_test_ids_and_masks()
+        
+    def get_test_ids_and_masks(self):
+        """
+        Iterates over the dataset and selects just the aligned (paired) samples
+        """
+        torch.manual_seed(0)
+        train_size = int(len(self.dataset) * .999)
+        test_size = len(self.dataset) - train_size
+        _, test_set = torch.utils.data.random_split(self.dataset, [train_size, test_size])
+        print('Original test set size: ', len(test_set))
+        all_patches = []
+        all_ids = []
+        all_masks = []
+        all_ispaired = []
+        new_test_set = []
+        im_names = []
+        
+        for i, sample in enumerate(test_set):
+            #if i == 4: break
+            patches =   sample[0]
+            input_ids = sample[1]
+            is_paired = sample[2]
+            att_masks = sample[3]
+            im_name =   sample[4]
+            
+            if is_paired:
+                all_patches.append(patches)
+                all_ids.append(input_ids)
+                all_ispaired.append(is_paired) # using this as well to not break the workflow of fashionbert
+                all_masks.append(att_masks)
+                im_names.append(im_name)
+                new_test_set.append((patches, input_ids, is_paired, att_masks, im_name))
+                
+        self.test_set = new_test_set
+        print('New test set size: ', len(self.test_set))
+        return all_patches, all_ids, all_ispaired, all_masks
+    
+    def __len__(self):
+        return len(self.test_set)
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        sample = self.test_set[idx]
+        
+        patches =   sample[0]   # [64, 2048]
+        input_ids = sample[1] # [448]
+        is_paired = sample[2] # tensor(True)
+        att_masks = sample[3] # [448]
+        im_name =   sample[4]
+        
+        # Generate 100 random indices 
+        negative_indices = random.sample(range(0, len(self.test_ids)), 4)
+        
+        # Sample 100 negative pairs for sample
+        neg_input_ids = [self.test_ids[i] for i in negative_indices]
+        neg_att_masks = [self.test_masks[i] for i in negative_indices]
+        
+        # Sample 100 negative images
+        neg_patches = [self.test_patches[i] for i in negative_indices]
+        
+        neg_input_ids = torch.stack(neg_input_ids, dim=0) # [100, 448]
+        neg_att_masks = torch.stack(neg_att_masks, dim=0) # [100, 448]
+        neg_patches   = torch.stack(neg_patches, dim=0).squeeze(4).squeeze(3) # [NUM_SAMPLES, 64, 2048]
+        
+        return (
+            torch.tensor(patches).view(patches.shape[0], patches.shape[1]), # [64, 2048]
+            torch.tensor(neg_patches), # [NUM_SAMPLES, 64, 2048]
+            torch.tensor(input_ids), # [448]
+            torch.tensor(is_paired), # True
+            torch.tensor(att_masks), # [448]
+            torch.tensor(neg_input_ids), # [100, 448]
+            torch.tensor(neg_att_masks), # [100, 448]
+            im_name
             )
