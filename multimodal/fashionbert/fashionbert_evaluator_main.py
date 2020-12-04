@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
-
-
 import torch, torchvision
 import sys
 import random
@@ -493,7 +490,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate FashionBert.')
     parser.add_argument('--path_to_images', help='Path to images folder')
     parser.add_argument('--path_to_dict_pairs', help='Path to ADARI furniture dict .json file')
-    parser.add_argument('--num_neg_samples', help='Number of negative samples int', default=10)
+    parser.add_argument('--num_subsamples', help='Number of subsampler datset', default=1000)
     parser.add_argument('--path_to_pretrained_model', help='Path to pretrained model', default=None)
     
     args = parser.parse_args()
