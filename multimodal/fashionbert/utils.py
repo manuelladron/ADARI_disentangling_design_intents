@@ -171,7 +171,7 @@ class PreprocessedADARI_evaluation(Dataset):
         Iterates over the dataset and selects just the aligned (paired) samples
         """
         torch.manual_seed(0)
-        train_size = int(len(self.dataset) * .999)
+        train_size = int(len(self.dataset) * .8)
         test_size = len(self.dataset) - train_size
         _, test_set = torch.utils.data.random_split(self.dataset, [train_size, test_size])
         print('Original test set size: ', len(test_set))
@@ -217,7 +217,7 @@ class PreprocessedADARI_evaluation(Dataset):
         im_name =   sample[4]
         
         # Generate 100 random indices 
-        negative_indices = random.sample(range(0, len(self.test_ids)), 4)
+        negative_indices = random.sample(range(0, len(self.test_ids)), 100)
         
         # Sample 100 negative pairs for sample
         neg_input_ids = [self.test_ids[i] for i in negative_indices]
