@@ -188,14 +188,14 @@ class FashionBertRandomPatchesDataset(Dataset):
         
         patches = []
         with torch.no_grad():
-            for _ in range(num_patches):
+            for _ in range(self.num_patches):
                 height = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
                 width = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
 
                 start_x = random.randrange(0, self.img_size - height)
                 start_y = random.randrange(0, self.img_size - width)
 
-                patch = img[:, start_x:start_x + height, start_y:start_y + height]
+                patch = img[:, start_x:start_x + height, start_y:start_y + height].to(self.device)
                 patches.append(self.im_encoder(patch.reshape(-1, patch.shape[0], patch.shape[1], patch.shape[2]))[0])
         
         tokens = self.tokenizer(
