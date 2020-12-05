@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[3]:
+
+
 import torch, torchvision
 import sys
 import random
@@ -22,6 +25,7 @@ import argparse
 import datetime
 
 import numpy as np
+from tqdm import tqdm
 
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -245,11 +249,6 @@ class Evaluator(torch.nn.Module):
         
         return text_acc, alig_acc
         
-
-
-# In[36]:
-
-
 def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, neg_input_ids, neg_attention_mask, evaluator):
     """
     image2text retrieval: 
@@ -436,7 +435,7 @@ def test(dataset, device, num_samples, pretrained_model=None):
     running_acc_pred_txt2im = 0.0
     
     with torch.no_grad():
-        for i, (patches, neg_patches, input_ids, is_paired, attention_mask, neg_input_ids, neg_attention_mask, img_name) in enumerate(dataloader):
+        for i, (patches, neg_patches, input_ids, is_paired, attention_mask, neg_input_ids, neg_attention_mask, img_name) in enumerate(tqdm(dataloader)):
 
             # ****** Shapes ********
             # input_ids shape:     [1, 448]
@@ -466,7 +465,7 @@ def test(dataset, device, num_samples, pretrained_model=None):
             running_acc_alignment_txt2im += txt2im_alig_acc
             
             # For Rank @ K
-            query_dict_txt2im[img_name[0]] = im2txt_query_scores
+            query_dict_txt2im[img_name[0]] = txt2im_query_scores
    
 
     im2txt_test_set_accuracy_pred = (running_acc_pred_im2txt / len(dataloader))
@@ -488,16 +487,15 @@ def test(dataset, device, num_samples, pretrained_model=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate FashionBert.')
-    parser.add_argument('--path_to_images', help='Path to images folder')
-    parser.add_argument('--path_to_dict_pairs', help='Path to ADARI furniture dict .json file')
+    parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file')
     parser.add_argument('--num_subsamples', help='Number of subsampler datset', default=1000)
     parser.add_argument('--path_to_pretrained_model', help='Path to pretrained model', default=None)
     
     args = parser.parse_args()
     print('Processing the dataset...')
-    dataset = PreprocessedADARI_evaluation(args.path_to_images, args.path_to_dict_pairs)
+    dataset = PreprocessedADARI_evaluation(args.path_to_dataset)
     print('Starting evaluation...')
-    test(dataset, device, args.num_neg_samples, args.path_to_pretrained_model)
+    test(dataset, device, args.num_subsamples, args.path_to_pretrained_model)
     print('Done!')
 
 

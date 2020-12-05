@@ -161,11 +161,22 @@ class PreprocessedADARI(Dataset):
             )
     
 class PreprocessedADARI_evaluation(Dataset):
-    def __init__(self, path_to_images, path_to_dict_pairs):
+    def __init__(self, path_to_dataset):
         super(PreprocessedADARI_evaluation).__init__()
-        self.dataset = MultiModalBertDataset(path_to_images, path_to_dict_pairs)
-        self.test_patches, self.test_ids, _, self.test_masks  = self.get_test_ids_and_masks()
-        
+        #self.dataset = MultiModalBertDataset(path_to_images, path_to_dict_pairs)
+        #self.test_patches, self.test_ids, _, self.test_masks  = self.get_test_ids_and_masks()
+        f = open(path_to_dataset, "rb")
+        self.test_set_d = pickle.load(f)
+        self.test_set = self.test_set_d['test_dataset']
+        self.test_patches = []
+        self.test_ids = []
+        self.test_masks = []
+        for i, sample in enumerate(self.test_set):
+            self.test_patches.append(sample[0])
+            self.test_ids.append(sample[1])
+            self.test_masks.append(sample[3])
+
+    # This function has been used only the first time to pass the name of the images with the rest     
     def get_test_ids_and_masks(self):
         """
         Iterates over the dataset and selects just the aligned (paired) samples
@@ -200,6 +211,13 @@ class PreprocessedADARI_evaluation(Dataset):
                 
         self.test_set = new_test_set
         print('New test set size: ', len(self.test_set))
+        print('New test set size: ', len(self.test_set))
+        # Save dataset
+        D = {'test_dataset': new_test_set}
+        with open('preprocess_adari_evaluation.pkl', 'wb') as handle:
+            pickle.dump(D, handle)
+        print('--dataset saved')
+        #return new_test_set
         return all_patches, all_ids, all_ispaired, all_masks
     
     def __len__(self):
