@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[3]:
-
-
 import torch, torchvision
 import sys
 import random
@@ -16,8 +10,8 @@ from torch.utils.data import Dataset, DataLoader
 import transformers
 from transformers import AdamW
 from transformers import BertTokenizer, BertModel
-# from transformers.models.bert.modeling_bert import BertPreTrainingHeads
-from transformers.modeling_bert import BertPreTrainingHeads
+from transformers.models.bert.modeling_bert import BertPreTrainingHeads
+# from transformers.modeling_bert import BertPreTrainingHeads
 from utils import construct_bert_input, PreprocessedADARI_evaluation, save_json
 
 from fashionbert_model import FashionBert, FashionBertHead
@@ -27,22 +21,24 @@ import datetime
 import numpy as np
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt
+
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-class Evaluator(torch.nn.Module):     
-    def __init__(self, pretrained_model=None):
-        super(Evaluator, self).__init__()
-        
-        if pretrained_model != None:
-            print('-- Loading fashionbert_pretrained model: {}'.format(pretrained_model))
-            fashion_bert = FashionBert.from_pretrained(pretrained_model, return_dict=True)
-        else:
-            fashion_bert = FashionBert.from_pretrained('bert-base-uncased', return_dict=True)
-        
-        self.model = fashion_bert
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
+class FashionbertEvaluator(transformers.BertPreTrainedModel):  
+    def __init__(self, config):
+        super().__init__(config) 
+    
+        self.bert = BertModel(config)
+        
+        self.im_to_embedding = torch.nn.Linear(2048, 768)
+        self.im_to_embedding_norm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+    
+        self.cls = BertPreTrainingHeads(config)
+        
+        self.init_weights() 
     
     def text2img_scores(self,
                         input_ids,
@@ -102,7 +98,6 @@ class Evaluator(torch.nn.Module):
             query_scores.append(score_n)
             query_labels.append(False)
         
-        #print(evaluator.tokenizer.convert_ids_to_tokens(ids))
         S = [(s,l) for s, l in sorted(zip(query_scores, query_labels), key=lambda x: x[0], reverse=True)]
         return S
     
@@ -165,14 +160,18 @@ class Evaluator(torch.nn.Module):
         return S
         
     def rank_at_K(self, dict_scores, img2text=True):
+        logs = ''
+        
         if img2text:
-            print('------ Image 2 Text ------')
+            l1 = '------ Image 2 Text ------\n'
+            logs += l1
+            print(l1)
         else:
-            print('------ Text 2 Image ------')
+            l2 = '------ Text 2 Image ------\n'
+            print(l2)
         
         Ks = [1, 5, 10]
         for K in Ks:
-            #print('------ Rank @ {} ------'.format(K))
             found = 0
             for key, val in dict_scores.items():
                 tmp_range = K if K < len(val) else len(val)
@@ -181,7 +180,11 @@ class Evaluator(torch.nn.Module):
                     if label:
                         found += 1
                         break
-            print('------ Rank @ {} = {} ------'.format(K, (found/len(dict_scores.keys()) )))        
+            l3 = '------ Rank @ {} = {} ------\n'.format(K, (found/len(dict_scores.keys()) ))
+            logs += l3
+            print(l3)     
+        
+        return logs
         
     def get_scores_and_metrics(
         self,
@@ -196,7 +199,7 @@ class Evaluator(torch.nn.Module):
         seq_length = embeds.shape[1]
         hidden_dim = embeds.shape[2]
 
-        outputs = self.model.bert(inputs_embeds=embeds, return_dict=True)
+        outputs = self.bert(inputs_embeds=embeds, return_dict=True)
         sequence_output = outputs.last_hidden_state # [batch, seq_length, hidden_size]
         pooler_output = outputs.pooler_output      #  [batch_size, hidden_size] last layer of hidden-state of first token (CLS) + linear layer + tanh
 
@@ -207,7 +210,7 @@ class Evaluator(torch.nn.Module):
 
         ### FOR TEXT 
         # Predict the masked text tokens and alignment scores (whether image and text match)
-        prediction_scores, alignment_scores = self.model.cls(text_output, pooler_output)
+        prediction_scores, alignment_scores = self.cls(text_output, pooler_output)
         # prediction score is [batch, 448, vocab_size = 30522]
         # aligment score is [batch, 2] 2 with logits corresponding to 1 and  0
         
@@ -248,6 +251,7 @@ class Evaluator(torch.nn.Module):
         alig_acc = accuracy_score(alig_labels, alig_preds)
         
         return text_acc, alig_acc
+       
         
 def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, neg_input_ids, neg_attention_mask, evaluator):
     """
@@ -258,30 +262,8 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     im_seq_len = patches.shape[1]
     bs = input_ids.shape[0]
     len_neg_inputs = neg_input_ids.shape[1]
-
-    # PAIRED PATCHES
-    # mask image patches with prob 10%
-    masked_patches = patches.detach().clone()
-    masked_patches = masked_patches.view(-1, patches.shape[2])
-    im_mask = torch.rand((masked_patches.shape[0], 1)) >= 0.1
-    masked_patches *= im_mask
-
-    try:
-        masked_patches = masked_patches.view(bs, im_seq_len, patches.shape[2])
-    except Exception as e:
-        print(e)
-        print(f"masked_patches: {masked_patches.shape}")
-        print(f"im_mask: {im_mask.shape}")
-        print(f"patches: {patches.shape}")
-        return
-        
-    # Mask tokens with prob 15%, note id 103 is the [MASK] token
-    token_mask = torch.rand(input_ids.shape)
-    masked_input_ids = input_ids.detach().clone()
-    masked_input_ids[token_mask < 0.15] = 103
-
-    embeds = construct_bert_input(masked_patches, masked_input_ids, evaluator.model, device=device)
-    # pad attention mask with 1s so model pays attention to the image parts
+    
+    embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
     attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
 
     # NEGATIVE SAMPLE # [batch, 100, 448]
@@ -293,17 +275,14 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
         neg_input_id_sample = neg_input_ids[:, j, :] # [1, 448]
         neg_attention_mask_sample = neg_attention_mask[:, j, :]
 
-        token_mask = torch.rand(neg_input_id_sample.shape)
-        masked_input_ids = neg_input_id_sample.detach().clone()
-        masked_input_ids[token_mask < 0.15] = 103
-
-        embeds_neg = construct_bert_input(masked_patches, masked_input_ids, evaluator.model, device=device)
+        embeds_neg = construct_bert_input(patches, neg_input_id_sample, evaluator, device=device)
         attention_mask_neg = F.pad(neg_attention_mask_sample, (0, embeds_neg.shape[1] - neg_input_id_sample.shape[1]), value = 1)
 
         all_embeds_neg.append(embeds_neg)
         all_att_mask.append(attention_mask_neg)
         all_neg_inputs.append(neg_input_id_sample.detach())
 
+        
     # Now I have all joint embeddings for 1 positive sample and 100 neg samples
     all_scores_query = evaluator.img2text_scores(
                 input_ids_p = input_ids,
@@ -335,44 +314,9 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     bs = input_ids.shape[0]
     len_neg_inputs = neg_input_ids.shape[1]
     
-    # PAIRED PATCHES
-    # mask image patches with prob 10%
-    masked_patches = patches.detach().clone()
-    masked_patches = masked_patches.view(-1, patches.shape[2])
-    im_mask = torch.rand((masked_patches.shape[0], 1)) >= 0.1
-    masked_patches *= im_mask
-
-    try:
-        masked_patches = masked_patches.view(bs, im_seq_len, patches.shape[2])
-    except Exception as e:
-        print(e)
-        print(f"masked_patches: {masked_patches.shape}")
-        print(f"im_mask: {im_mask.shape}")
-        print(f"patches: {patches.shape}")
-        return
-
-    # UNPAIRED PATCHES
-    neg_masked_patches = neg_patches.detach().clone()
-    neg_masked_patches = neg_masked_patches.view(-1, neg_patches.shape[3])
-    neg_im_mask = torch.rand((neg_masked_patches.shape[0], 1)) >= 0.1
-    neg_masked_patches *= neg_im_mask
-
-    try:
-        neg_masked_patches = neg_masked_patches.view(bs, len_neg_inputs, im_seq_len, patches.shape[2])
-    except Exception as e:
-        print(e)
-        print(f"masked_patches: {neg_masked_patches.shape}")
-        print(f"im_mask: {neg_im_mask.shape}")
-        print(f"patches: {neg_patches.shape}")
-        return
-        
-    # Mask tokens with prob 15%, note id 103 is the [MASK] token
-    token_mask = torch.rand(input_ids.shape)
-    masked_input_ids = input_ids.detach().clone()
-    masked_input_ids[token_mask < 0.15] = 103
     
     # POSITIVE IMAGE 
-    embeds = construct_bert_input(masked_patches, masked_input_ids, evaluator.model, device=device)
+    embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
     attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
         
     # NEGATIVE SAMPLES
@@ -380,8 +324,8 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     all_att_mask = []
     
     for p in range(len_neg_inputs):
-        neg_masked_patches_sample = neg_masked_patches[:, p, :, :]
-        embeds_neg = construct_bert_input(neg_masked_patches_sample, masked_input_ids, evaluator.model, device=device)
+        neg_patches_sample = neg_patches[:, p, :, :]
+        embeds_neg = construct_bert_input(neg_patches_sample, input_ids, evaluator, device=device)
         attention_mask_neg = F.pad(attention_mask, (0, embeds_neg.shape[1] - input_ids.shape[1]), value = 1)
 
         all_embeds_neg.append(embeds_neg)
@@ -409,7 +353,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     return all_scores_query, txt_acc, alig_acc
     
     
-def test(dataset, device, num_samples, pretrained_model=None):
+def test(dataset, device, num_samples, save_file_name, pretrained_model=None):
     torch.cuda.empty_cache()
     torch.manual_seed(0)    
     dataloader = torch.utils.data.DataLoader(
@@ -419,13 +363,14 @@ def test(dataset, device, num_samples, pretrained_model=None):
         sampler = torch.utils.data.SubsetRandomSampler(
                     torch.randint(high=len(dataset), size=(num_samples,))),
         )
+    print('dataloader len: ', len(dataloader))
     if pretrained_model != None:
-        evaluator = Evaluator(pretrained_model)
+        evaluator = FashionbertEvaluator.from_pretrained(pretrained_model, return_dict=True)
     else:
-        evaluator = Evaluator()
+        evaluator = FashionbertEvaluator.from_pretrained('bert-base-uncased', return_dict=True)
     
-    evaluator.model.to(device)
-    evaluator.model.eval()
+    evaluator.to(device)
+    evaluator.eval()
 
     query_dict_im2txt = {}
     query_dict_txt2im = {}
@@ -443,10 +388,12 @@ def test(dataset, device, num_samples, pretrained_model=None):
             # neg_patches:         [1, NUM_SAMPLES=100, 64, 2048]
             
             # IMAGE 2 TEXT
+            #print('im2text..')
             im2txt_query_scores, im2txt_pred_acc, im2txt_alig_acc = image2text(i, patches, neg_patches, input_ids, 
                                                                                 is_paired, attention_mask, 
                                                                                 neg_input_ids, neg_attention_mask,
                                                                                 evaluator)
+            #print('done')
             # Accuracies 
             running_acc_pred_im2txt += im2txt_pred_acc
             running_acc_alignment_im2txt += im2txt_alig_acc
@@ -456,10 +403,12 @@ def test(dataset, device, num_samples, pretrained_model=None):
             
             
             # TEXT 2 IMAGE
+            #print('txt2img..')
             txt2im_query_scores, txt2im_pred_acc, txt2im_alig_acc = text2image(i, patches, neg_patches, input_ids, 
                                                                                 is_paired, attention_mask, 
                                                                                 neg_input_ids, neg_attention_mask,
                                                                                 evaluator)
+            #print('done')
             # Accuracies 
             running_acc_pred_txt2im += txt2im_pred_acc
             running_acc_alignment_txt2im += txt2im_alig_acc
@@ -474,28 +423,47 @@ def test(dataset, device, num_samples, pretrained_model=None):
     txt2im_test_set_accuracy_alig = (running_acc_alignment_txt2im / len(dataloader))
     
     print()
-    print('---- IMAGE 2 TEXT EVALUATIONS ---------------------')
-    evaluator.rank_at_K(query_dict_im2txt, True)
-    print('---- Accuracy in token predictions: {} -----'.format(im2txt_test_set_accuracy_pred))
-    print('---- Accuracy in text-image alignment: {} -----'.format(im2txt_test_set_accuracy_alig))
+    results = ''
+    log1 = '---- IMAGE 2 TEXT EVALUATIONS ---------------------\n'
+    log2 = evaluator.rank_at_K(query_dict_im2txt, True)
+    log3 = '---- Accuracy in token predictions: {} -----\n'.format(im2txt_test_set_accuracy_pred)
+    log4 = '---- Accuracy in text-image alignment: {} -----\n'.format(im2txt_test_set_accuracy_alig)
+    print(log1)
+    print(log2)
+    print(log3)
+    print(log4)
     print()
-    print('---- TEXT 2 IMAGE EVALUATIONS ---------------------')
-    evaluator.rank_at_K(query_dict_txt2im, False)
-    print('---- Accuracy in token predictions: {} -----'.format(txt2im_test_set_accuracy_pred))
-    print('---- Accuracy in text-image alignment: {} -----'.format(txt2im_test_set_accuracy_alig))
+    log5 = '---- TEXT 2 IMAGE EVALUATIONS ---------------------\n'
+    log6 = evaluator.rank_at_K(query_dict_txt2im, False)
+    log7 = '---- Accuracy in token predictions: {} -----\n'.format(txt2im_test_set_accuracy_pred)
+    log8 = '---- Accuracy in text-image alignment: {} -----\n'.format(txt2im_test_set_accuracy_alig)
+    print(log5)
+    print(log6)
+    print(log7)
+    print(log8)
     
+    results += log1
+    results += log2
+    results += log3
+    results += log4
+    results += log5
+    results += log6
+    results += log7
+    results += log8
+    
+    save_json(save_file_name, results)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate FashionBert.')
     parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file')
     parser.add_argument('--num_subsamples', help='Number of subsampler datset', default=1000)
     parser.add_argument('--path_to_pretrained_model', help='Path to pretrained model', default=None)
-    
+    parser.add_argument('--save_file_name', help='Name to save file with results')
     args = parser.parse_args()
+    
     print('Processing the dataset...')
     dataset = PreprocessedADARI_evaluation(args.path_to_dataset)
     print('Starting evaluation...')
-    test(dataset, device, args.num_subsamples, args.path_to_pretrained_model)
+    test(dataset, device, args.num_subsamples, args.save_file_name, args.path_to_pretrained_model)
     print('Done!')
-
 
