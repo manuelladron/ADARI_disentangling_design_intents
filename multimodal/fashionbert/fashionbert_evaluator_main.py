@@ -391,20 +391,14 @@ def test(dataset, device, num_samples, save_file_name, pretrained_model=None):
             # neg_patches:         [1, NUM_SAMPLES=100, 64, 2048]
             
             # IMAGE 2 TEXT
-<<<<<<< HEAD
-            print('im2text..')
-=======
+
             #print('im2text..')
->>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             im2txt_query_scores, im2txt_pred_acc, im2txt_alig_acc = image2text(i, patches, neg_patches, input_ids, 
                                                                                 is_paired, attention_mask, 
                                                                                 neg_input_ids, neg_attention_mask,
                                                                                 evaluator)
-<<<<<<< HEAD
-            print('done')
-=======
+
             #print('done')
->>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             # Accuracies 
             running_acc_pred_im2txt += im2txt_pred_acc
             running_acc_alignment_im2txt += im2txt_alig_acc
@@ -414,20 +408,14 @@ def test(dataset, device, num_samples, save_file_name, pretrained_model=None):
             
             
             # TEXT 2 IMAGE
-<<<<<<< HEAD
-            print('txt2img..')
-=======
             #print('txt2img..')
->>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
+
             txt2im_query_scores, txt2im_pred_acc, txt2im_alig_acc = text2image(i, patches, neg_patches, input_ids, 
                                                                                 is_paired, attention_mask, 
                                                                                 neg_input_ids, neg_attention_mask,
                                                                                 evaluator)
-<<<<<<< HEAD
-            print('done')
-=======
+
             #print('done')
->>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             # Accuracies 
             running_acc_pred_txt2im += txt2im_pred_acc
             running_acc_alignment_txt2im += txt2im_alig_acc
