@@ -8,8 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 import transformers
 from transformers import AdamW
 from transformers import BertTokenizer, BertModel
-# from transformers.models.bert.modeling_bert import BertPreTrainingHeads
-from transformers.modeling_bert import BertPreTrainingHeads
+from transformers.models.bert.modeling_bert import BertPreTrainingHeads
 from utils import construct_bert_input, MultiModalBertDataset, PreprocessedADARI, save_json
 from transformers import get_linear_schedule_with_warmup
 import argparse
