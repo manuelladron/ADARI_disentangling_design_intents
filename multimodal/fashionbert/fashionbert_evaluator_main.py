@@ -10,8 +10,8 @@ from torch.utils.data import Dataset, DataLoader
 import transformers
 from transformers import AdamW
 from transformers import BertTokenizer, BertModel
-# from transformers.models.bert.modeling_bert import BertPreTrainingHeads
-from transformers.modeling_bert import BertPreTrainingHeads
+from transformers.models.bert.modeling_bert import BertPreTrainingHeads
+# from transformers.modeling_bert import BertPreTrainingHeads
 from utils import construct_bert_input, PreprocessedADARI_evaluation, save_json
 
 from fashionbert_model import FashionBert, FashionBertHead
@@ -199,7 +199,10 @@ class FashionbertEvaluator(transformers.BertPreTrainedModel):
         seq_length = embeds.shape[1]
         hidden_dim = embeds.shape[2]
 
-        outputs = self.bert(inputs_embeds=embeds, return_dict=True)
+        outputs = self.bert(inputs_embeds=embeds, 
+                            attention_mask=attention_mask,
+                            return_dict=True)
+        
         sequence_output = outputs.last_hidden_state # [batch, seq_length, hidden_size]
         pooler_output = outputs.pooler_output      #  [batch_size, hidden_size] last layer of hidden-state of first token (CLS) + linear layer + tanh
 
@@ -388,12 +391,20 @@ def test(dataset, device, num_samples, save_file_name, pretrained_model=None):
             # neg_patches:         [1, NUM_SAMPLES=100, 64, 2048]
             
             # IMAGE 2 TEXT
+<<<<<<< HEAD
             print('im2text..')
+=======
+            #print('im2text..')
+>>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             im2txt_query_scores, im2txt_pred_acc, im2txt_alig_acc = image2text(i, patches, neg_patches, input_ids, 
                                                                                 is_paired, attention_mask, 
                                                                                 neg_input_ids, neg_attention_mask,
                                                                                 evaluator)
+<<<<<<< HEAD
             print('done')
+=======
+            #print('done')
+>>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             # Accuracies 
             running_acc_pred_im2txt += im2txt_pred_acc
             running_acc_alignment_im2txt += im2txt_alig_acc
@@ -403,12 +414,20 @@ def test(dataset, device, num_samples, save_file_name, pretrained_model=None):
             
             
             # TEXT 2 IMAGE
+<<<<<<< HEAD
             print('txt2img..')
+=======
+            #print('txt2img..')
+>>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             txt2im_query_scores, txt2im_pred_acc, txt2im_alig_acc = text2image(i, patches, neg_patches, input_ids, 
                                                                                 is_paired, attention_mask, 
                                                                                 neg_input_ids, neg_attention_mask,
                                                                                 evaluator)
+<<<<<<< HEAD
             print('done')
+=======
+            #print('done')
+>>>>>>> 4429ae29d6c89bb1e9164919a4c8a36871125677
             # Accuracies 
             running_acc_pred_txt2im += txt2im_pred_acc
             running_acc_alignment_txt2im += txt2im_alig_acc

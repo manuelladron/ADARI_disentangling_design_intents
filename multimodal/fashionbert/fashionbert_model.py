@@ -14,6 +14,7 @@ from utils import construct_bert_input, MultiModalBertDataset, PreprocessedADARI
 from transformers import get_linear_schedule_with_warmup
 import argparse
 import datetime
+from fashionBert_adaptive_loss import adaptive_loss
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -79,7 +80,9 @@ class FashionBert(transformers.BertPreTrainedModel):
         hidden_dim = embeds.shape[2]
 
 
-        outputs = self.bert(inputs_embeds=embeds, return_dict=True)
+        outputs = self.bert(inputs_embeds=embeds, 
+                            attention_mask=attention_mask,
+                            return_dict=True)
 
         sequence_output = outputs.last_hidden_state
         pooler_output = outputs.pooler_output
@@ -198,10 +201,10 @@ def train(fashion_bert, dataset, params, device):
                 is_paired=is_paired.to(device)
                 )
 
-            loss = (1. / 3.) * outputs['masked_lm_loss'] \
-                + (1. / 3.) * outputs['masked_patch_loss'] \
-                + (1. / 3.) * outputs['alignment_loss']
-            
+            #loss = (1. / 3.) * outputs['masked_lm_loss'] \
+            #    + (1. / 3.) * outputs['masked_patch_loss'] \
+            #    + (1. / 3.) * outputs['alignment_loss']
+            loss = adaptive_loss(outputs)
 
             loss.backward()
             opt.step()
