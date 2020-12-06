@@ -79,7 +79,9 @@ class FashionBert(transformers.BertPreTrainedModel):
         hidden_dim = embeds.shape[2]
 
 
-        outputs = self.bert(inputs_embeds=embeds, return_dict=True)
+        outputs = self.bert(inputs_embeds=embeds, 
+                            attention_mask=attention_mask,
+                            return_dict=True)
 
         sequence_output = outputs.last_hidden_state
         pooler_output = outputs.pooler_output
