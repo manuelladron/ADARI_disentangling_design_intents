@@ -194,7 +194,6 @@ class PreprocessedADARI_evaluation(Dataset):
         im_names = []
         
         for i, sample in enumerate(test_set):
-            #if i == 4: break
             patches =   sample[0]
             input_ids = sample[1]
             is_paired = sample[2]
@@ -238,11 +237,11 @@ class PreprocessedADARI_evaluation(Dataset):
         negative_indices = random.sample(range(0, len(self.test_ids)), 100)
         
         # Sample 100 negative pairs for sample
-        neg_input_ids = [self.test_ids[i] for i in negative_indices]
-        neg_att_masks = [self.test_masks[i] for i in negative_indices]
+        neg_input_ids = [self.test_ids[i] for i in negative_indices if i != idx]
+        neg_att_masks = [self.test_masks[i] for i in negative_indices if i != idx]
         
         # Sample 100 negative images
-        neg_patches = [self.test_patches[i] for i in negative_indices]
+        neg_patches = [self.test_patches[i] for i in negative_indices if i != idx]
         
         neg_input_ids = torch.stack(neg_input_ids, dim=0) # [100, 448]
         neg_att_masks = torch.stack(neg_att_masks, dim=0) # [100, 448]
