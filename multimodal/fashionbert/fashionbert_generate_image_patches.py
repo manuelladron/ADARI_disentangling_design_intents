@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import PIL
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from utils import MultiModalBertDataset
+from utils import MultiModalBertDataset, FashionBertRandomPatchesDataset
 import pandas as pd
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -35,7 +35,8 @@ def save_json(file_path, data):
 # In[ ]:
 
 
-dataset = MultiModalBertDataset(IMG_PATH, PAIRS_PATH, device=device)
+#dataset = MultiModalBertDataset(IMG_PATH, PAIRS_PATH, device=device)
+dataset = FashionBertRandomPatchesDataset(IMG_PATH, PAIRS_PATH, device=device)
 
 dataloader = DataLoader(dataset, batch_size=64, shuffle=False, drop_last=False)
 

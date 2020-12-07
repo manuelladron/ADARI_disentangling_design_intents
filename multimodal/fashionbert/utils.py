@@ -121,10 +121,8 @@ class MultiModalBertDataset(Dataset):
         with torch.no_grad():
             for i in range(img.shape[1] // self.patch_size):
                 for j in range(img.shape[2] // self.patch_size):
-                    encoded_patch = self.im_encoder(img[:, 
-                                            i*self.patch_size:(i+1)*self.patch_size, 
-                                            j*self.patch_size:(j+1)*self.patch_size].reshape(1, img.shape[0], self.patch_size, self.patch_size).to(self.device))
-                    patches.append(encoded_patch[0])
+                    patches.append(img[:, i*self.patch_size:(i+1)*self.patch_size, j*self.patch_size:(j+1)*self.patch_size])
+            processed_patches = self.im_encoder(torch.stack(patches).to(self.device))
         
         tokens = self.tokenizer(
             "".join([s + ' ' for s in text[0]]),
@@ -133,7 +131,7 @@ class MultiModalBertDataset(Dataset):
             padding = 'max_length',
             return_tensors = 'pt')
     
-        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
+        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
 
 
 class PreprocessedADARI(Dataset):
@@ -314,8 +312,15 @@ class FashionBertRandomPatchesDataset(Dataset):
                 start_x = random.randrange(0, self.img_size - height)
                 start_y = random.randrange(0, self.img_size - width)
 
-                patch = img[:, start_x:start_x + height, start_y:start_y + height].to(self.device)
-                patches.append(self.im_encoder(patch.reshape(-1, patch.shape[0], patch.shape[1], patch.shape[2]))[0])
+                patch = img[:, start_x:start_x + height, start_y:start_y + width]
+
+                pad_up = (self.max_patch_dim - patch.shape[1]) // 2
+                pad_bottom = self.max_patch_dim - patch.shape[1] - pad_up
+
+                pad_left = (self.max_patch_dim - patch.shape[2]) // 2
+                pad_right = self.max_patch_dim - patch.shape[2] - pad_left
+                patches.append(F.pad(patch, (pad_left, pad_right, pad_up, pad_bottom)))
+            processed_patches = self.im_encoder(torch.stack(patches).to(self.device))
         
         tokens = self.tokenizer(
             "".join([s + ' ' for s in text[0]]),
@@ -324,4 +329,4 @@ class FashionBertRandomPatchesDataset(Dataset):
             padding = 'max_length',
             return_tensors = 'pt')
     
-        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
+        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
