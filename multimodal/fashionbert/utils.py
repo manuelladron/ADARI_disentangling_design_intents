@@ -257,3 +257,71 @@ class PreprocessedADARI_evaluation(Dataset):
             torch.tensor(neg_att_masks), # [100, 448]
             im_name
             )
+
+class FashionBertRandomPatchesDataset(Dataset):
+    def __init__(
+        self, 
+        path_to_images, 
+        data_dict_path,
+        num_patches = 64, 
+        img_size = 64,
+        device = None
+    ):
+        super(MultiModalBertDataset).__init__()
+        self.img_path = path_to_images
+
+        # list of dicts giving img name, sentence, 
+        # and whether the sentence is paired or not
+        self.data_dict = open_json(data_dict_path)
+
+        self.img_size = img_size
+        self.num_patches = num_patches
+
+        self.im_encoder = EncoderCNN()
+        self.im_encoder.eval()
+        self.im_encoder.to(device)
+
+        self.min_patch_dim = 4
+        self.max_patch_dim = 16
+        
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.device = device
+
+    def __len__(self):
+        return len(self.data_dict)
+
+    def __getitem__(self, index):
+        sample = self.data_dict[index]
+
+        image_name = sample['id']
+        text = sample['text']
+        is_paired = sample['label']
+        
+        name = self.img_path + "/" + image_name
+        img = Image.open(name)
+        
+        img = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(self.img_size),
+        torchvision.transforms.CenterCrop(self.img_size),
+        torchvision.transforms.ToTensor()])(img)
+        
+        patches = []
+        with torch.no_grad():
+            for _ in range(self.num_patches):
+                height = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
+                width = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
+
+                start_x = random.randrange(0, self.img_size - height)
+                start_y = random.randrange(0, self.img_size - width)
+
+                patch = img[:, start_x:start_x + height, start_y:start_y + height].to(self.device)
+                patches.append(self.im_encoder(patch.reshape(-1, patch.shape[0], patch.shape[1], patch.shape[2]))[0])
+        
+        tokens = self.tokenizer(
+            "".join([s + ' ' for s in text[0]]),
+            max_length = 448,
+            truncation = True,
+            padding = 'max_length',
+            return_tensors = 'pt')
+    
+        return torch.stack(patches), tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
