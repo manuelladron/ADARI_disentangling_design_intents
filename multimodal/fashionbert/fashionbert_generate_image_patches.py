@@ -14,11 +14,13 @@ from utils import MultiModalBertDataset, FashionBertRandomPatchesDataset
 import pandas as pd
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+print(device)
 
 # directory containing all raw images
 IMG_PATH = "/home/ubuntu/ADARI"
 PAIRS_PATH = "/home/ubuntu/ADARI_furniture_pairs.json"
+#IMG_PATH = "/home/alex/CMU/777/ADARI/v2/full"
+#PAIRS_PATH = "/home/alex/CMU/777/ADARI/ADARI_furniture_pairs.json"
 
 def open_json(path):
     f = open(path) 
@@ -41,7 +43,7 @@ dataset = FashionBertRandomPatchesDataset(IMG_PATH, PAIRS_PATH, device=device)
 dataloader = DataLoader(dataset, batch_size=64, shuffle=False, drop_last=False)
 
 df = pd.DataFrame(columns=["patches", "input_ids", "is_paired", "attention_mask"])
-for j, (patches, input_ids, is_paired, attention_mask, img_name) in enumerate(dataloader):
+for j, (patches, input_ids, is_paired, attention_mask, img_name, patch_positions) in enumerate(dataloader):
     for i in range(patches.shape[0]):
         df = df.append(
             {
@@ -49,11 +51,11 @@ for j, (patches, input_ids, is_paired, attention_mask, img_name) in enumerate(da
                 "input_ids": input_ids[i].cpu().numpy(),
                 "is_paired": is_paired[i].cpu().numpy(),
                 "attention_mask": attention_mask[i].cpu().numpy(),
-                "img_name": img_name[i]
+                "img_name": img_name[i],
+                "patch_positions": patch_positions[i].cpu().numpy()
             },
             ignore_index=True
         )
-        print(f"Finished sample")
     if j % 10 == 0:
         print(f"At batch # {j}")
     

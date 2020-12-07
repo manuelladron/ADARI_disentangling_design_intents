@@ -118,10 +118,12 @@ class MultiModalBertDataset(Dataset):
                          img.shape[1] % self.patch_size // 2, img.shape[1] % self.patch_size // 2))
         
         patches = []
+        patch_positions = []
         with torch.no_grad():
             for i in range(img.shape[1] // self.patch_size):
                 for j in range(img.shape[2] // self.patch_size):
                     patches.append(img[:, i*self.patch_size:(i+1)*self.patch_size, j*self.patch_size:(j+1)*self.patch_size])
+                    patch_positions.append((i*self.patch_size, j*self.patch_size, (i+1)*self.patch_size, (j+1)*self.patch_size))
             processed_patches = self.im_encoder(torch.stack(patches).to(self.device))
         
         tokens = self.tokenizer(
@@ -131,7 +133,7 @@ class MultiModalBertDataset(Dataset):
             padding = 'max_length',
             return_tensors = 'pt')
     
-        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
+        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name, patch_positions
 
 
 class PreprocessedADARI(Dataset):
@@ -304,6 +306,7 @@ class FashionBertRandomPatchesDataset(Dataset):
         torchvision.transforms.ToTensor()])(img)
         
         patches = []
+        patch_positions = []
         with torch.no_grad():
             for _ in range(self.num_patches):
                 height = random.randrange(self.min_patch_dim, self.max_patch_dim+1, 2)
@@ -320,6 +323,8 @@ class FashionBertRandomPatchesDataset(Dataset):
                 pad_left = (self.max_patch_dim - patch.shape[2]) // 2
                 pad_right = self.max_patch_dim - patch.shape[2] - pad_left
                 patches.append(F.pad(patch, (pad_left, pad_right, pad_up, pad_bottom)))
+
+                patch_positions.append((start_x, start_y, start_x+height, start_y+width))
             processed_patches = self.im_encoder(torch.stack(patches).to(self.device))
         
         tokens = self.tokenizer(
@@ -329,4 +334,4 @@ class FashionBertRandomPatchesDataset(Dataset):
             padding = 'max_length',
             return_tensors = 'pt')
     
-        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name
+        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name, torch.tensor(patch_positions, dtype=torch.long)
