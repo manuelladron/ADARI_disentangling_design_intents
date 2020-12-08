@@ -335,3 +335,69 @@ class FashionBertRandomPatchesDataset(Dataset):
             return_tensors = 'pt')
     
         return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name, torch.tensor(patch_positions, dtype=torch.long)
+
+
+def mask_input_ids(
+    input_ids, 
+    pos, 
+    adj_mask_prob, 
+    other_mask_prob, 
+    adj_value,
+    attention_mask,
+    mask_value=103
+    ):
+    """
+    input_ids: Shape (batch_size, sequence length)
+    pos: Shape (batch_size, sequence length)
+    adj_mask_prob: probability of masking adjective words (must be in [0, 1])
+    other_mask_prob: probability of masking non-adjective words (must be in [0, 1])
+    adj_value: Value in pos tensor corresponding to an adjective
+    attention_mask: Shape (batch_size, sequence length), The attention mask given as input
+    mask_value: The value to set masked tokens to (probably 103)
+
+    returns:
+        masked_input_ids, labels
+        masked_input_ids should be fed into construct_bert_input
+        labels should be fed into fashion_bert label argument
+    """
+
+    masked_input_ids = input_ids.detach().clone()
+    labels = input_ids.detach().clone()
+
+    # mask the adjectives    
+    # get all adjectives
+    adj = masked_input_ids[pos == adj_value]
+    # create mask
+    adj_mask = torch.rand(adj.shape)
+    # set them to mask_value with prob adj_mask_prob
+    adj[adj_mask < adj_mask_prob] = mask_value
+    # set the masked_input_ids adjectives to the masked adj vector
+    masked_input_ids[pos == adj_value] = adj
+
+    labels_adj = labels[pos == adj_value]
+    labels_adj[adj_mask >= adj_mask_prob] = -100
+    labels[pos == adj_value] = labels_adj
+
+    # mask other words
+    other = masked_input_ids[pos != adj_value]
+    other_mask = torch.rand(other.shape)
+    other[other_mask < other_mask_prob] = mask_value
+    masked_input_ids[pos != adj_value] = other
+
+    labels_other = labels[pos != adj_value]
+    labels_other[other_mask >= other_mask_prob] = -100
+    labels[pos != adj_value] = labels_other
+
+    labels[attention_mask == 0] = -100
+
+    return masked_input_ids, labels
+
+def test():
+    input_ids = torch.rand((64, 50))
+    pos = (torch.rand((64, 50)) * 10).long()
+    adj_value = 1
+    adj_mask_prob = .5
+    other_mask_prob = .1
+    attention_mask = torch.ones(input_ids.shape)
+    
+    return mask_input_ids(input_ids, pos, adj_value, adj_mask_prob, adj_value, attention_mask)
