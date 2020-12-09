@@ -267,7 +267,7 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     len_neg_inputs = neg_input_ids.shape[1]
     
     embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
-    attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
+    attention_mask_ = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
 
     # NEGATIVE SAMPLE # [batch, 100, 448]
     all_embeds_neg = []
@@ -290,7 +290,7 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     all_scores_query = evaluator.img2text_scores(
                 input_ids_p = input_ids,
                 embeds_p = embeds,
-                att_mask_p = attention_mask,
+                att_mask_p = attention_mask_,
                 input_ids_n = all_neg_inputs,
                 embeds_n = all_embeds_neg,
                 att_mask_n = all_att_mask)
@@ -298,7 +298,7 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     # Accuracy: only in positive example
     txt_acc, alig_acc = evaluator.get_scores_and_metrics(
                         embeds,                       # text + image embedded 
-                        attention_mask,
+                        attention_mask_,
                         labels=input_ids,                  # [batch, 448]
                         is_paired=is_paired,               # [batch]
                         only_alignment = False,
@@ -339,7 +339,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     all_scores_query = evaluator.text2img_scores(
                 input_ids   = input_ids,
                 embeds      = embeds,
-                att_mask    = attention_mask,
+                att_mask    = attention_mask_,
                 embeds_n    = all_embeds_neg, # list
                 att_mask_n  = all_att_mask) # list
               
