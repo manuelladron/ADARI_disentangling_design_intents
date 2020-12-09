@@ -320,7 +320,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     
     # POSITIVE IMAGE 
     embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
-    attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
+    attention_mask_ = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
         
     # NEGATIVE SAMPLES
     all_embeds_neg = []
@@ -347,7 +347,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     # Accuracy: only in positive example
     txt_acc, alig_acc = evaluator.get_scores_and_metrics(
                         embeds,                       # text + image embedded 
-                        attention_mask,
+                        attention_mask_,
                         labels=input_ids,                  # [batch, 448]
                         is_paired=is_paired,               # [batch]
                         only_alignment = False,
