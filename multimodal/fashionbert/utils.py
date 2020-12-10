@@ -195,104 +195,31 @@ class PreprocessedADARI(Dataset):
             torch.tensor(sample.is_paired),
             torch.tensor(sample.attention_mask)
             )
-    
-class PreprocessedADARI_evaluation(Dataset):
+ 
+class EvaluationDataset(Dataset):
     def __init__(self, path_to_dataset):
-        super(PreprocessedADARI_evaluation).__init__()
-        #self.dataset = MultiModalBertDataset(path_to_images, path_to_dict_pairs)
-        #self.test_patches, self.test_ids, _, self.test_masks  = self.get_test_ids_and_masks()
-        f = open(path_to_dataset, "rb")
-        self.test_set_d = pickle.load(f)
-        self.test_set = self.test_set_d['test_dataset']
-        self.test_patches = []
-        self.test_ids = []
-        self.test_masks = []
-        for i, sample in enumerate(self.test_set):
-            self.test_patches.append(sample[0])
-            self.test_ids.append(sample[1])
-            self.test_masks.append(sample[3])
+        super(EvaluationDataset).__init__()
+        self.path_to_dataset = path_to_dataset
 
-    # This function has been used only the first time to pass the name of the images with the rest     
-    def get_test_ids_and_masks(self):
-        """
-        Iterates over the dataset and selects just the aligned (paired) samples
-        """
-        torch.manual_seed(0)
-        train_size = int(len(self.dataset) * .8)
-        test_size = len(self.dataset) - train_size
-        _, test_set = torch.utils.data.random_split(self.dataset, [train_size, test_size])
-        print('Original test set size: ', len(test_set))
-        all_patches = []
-        all_ids = []
-        all_masks = []
-        all_ispaired = []
-        new_test_set = []
-        im_names = []
-        
-        for i, sample in enumerate(test_set):
-            patches =   sample[0]
-            input_ids = sample[1]
-            is_paired = sample[2]
-            att_masks = sample[3]
-            im_name =   sample[4]
-            
-            if is_paired:
-                all_patches.append(patches)
-                all_ids.append(input_ids)
-                all_ispaired.append(is_paired) # using this as well to not break the workflow of fashionbert
-                all_masks.append(att_masks)
-                im_names.append(im_name)
-                new_test_set.append((patches, input_ids, is_paired, att_masks, im_name))
-                
-        self.test_set = new_test_set
-        print('New test set size: ', len(self.test_set))
-        print('New test set size: ', len(self.test_set))
-        # Save dataset
-        D = {'test_dataset': new_test_set}
-        with open('preprocess_adari_evaluation.pkl', 'wb') as handle:
-            pickle.dump(D, handle)
-        print('--dataset saved')
-        #return new_test_set
-        return all_patches, all_ids, all_ispaired, all_masks
-    
+        f = open(self.path_to_dataset, "rb")
+        self.dataset = pickle.load(f)
+
     def __len__(self):
-        return len(self.test_set)
-    
+        return len(self.dataset)
+
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        sample = self.test_set[idx]
-        
-        patches =   sample[0]   # [64, 2048]
-        input_ids = sample[1] # [448]
-        is_paired = sample[2] # tensor(True)
-        att_masks = sample[3] # [448]
-        im_name =   sample[4]
-        
-        # Generate 100 random indices 
-        negative_indices = random.sample(range(0, len(self.test_ids)), 100)
-        
-        # Sample 100 negative pairs for sample
-        neg_input_ids = [self.test_ids[i] for i in negative_indices if i != idx]
-        neg_att_masks = [self.test_masks[i] for i in negative_indices if i != idx]
-        
-        # Sample 100 negative images
-        neg_patches = [self.test_patches[i] for i in negative_indices if i != idx]
-        
-        neg_input_ids = torch.stack(neg_input_ids, dim=0) # [100, 448]
-        neg_att_masks = torch.stack(neg_att_masks, dim=0) # [100, 448]
-        neg_patches   = torch.stack(neg_patches, dim=0).squeeze(4).squeeze(3) # [NUM_SAMPLES, 64, 2048]
-        
+        sample = self.dataset.iloc[idx]
+
         return (
-            torch.tensor(patches).view(patches.shape[0], patches.shape[1]), # [64, 2048]
-            torch.tensor(neg_patches), # [NUM_SAMPLES, 64, 2048]
-            torch.tensor(input_ids), # [448]
-            torch.tensor(is_paired), # True
-            torch.tensor(att_masks), # [448]
-            torch.tensor(neg_input_ids), # [100, 448]
-            torch.tensor(neg_att_masks), # [100, 448]
-            im_name
-            )
+            torch.tensor(sample.patches).view(sample.patches.shape[0], sample.patches.shape[1]),
+            torch.tensor(sample.input_ids),
+            torch.tensor(sample.is_paired),
+            torch.tensor(sample.attention_mask),
+            sample.img_name,
+            torch.tensor(sample.patch_positions)
+        )
 
 class FashionBertRandomPatchesDataset(Dataset):
     def __init__(
