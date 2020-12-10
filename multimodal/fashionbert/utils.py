@@ -164,7 +164,7 @@ class MultiModalBertDataset(Dataset):
             padding = 'max_length',
             return_tensors = 'pt')
     
-        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name, patch_positions
+        return processed_patches, tokens['input_ids'][0], torch.tensor(is_paired), tokens['attention_mask'][0], image_name, torch.tensor(patch_positions, dtype=torch.long)
 
 
 class PreprocessedADARI(Dataset):
