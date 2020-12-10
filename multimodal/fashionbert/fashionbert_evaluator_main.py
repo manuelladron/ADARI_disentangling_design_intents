@@ -259,7 +259,7 @@ def image2text(patches, neg_patches, input_ids, is_paired, attention_mask, neg_i
     bs = input_ids.shape[0]
     len_neg_inputs = neg_input_ids.shape[1]
 
-    embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
+    embeds = construct_bert_input(patches, input_ids, evaluator, device=device, random_patches=random_patches)
     attention_mask_mm = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value=1)
 
     # NEGATIVE SAMPLE # [batch, 100, 448]
@@ -322,7 +322,7 @@ def text2image(patches, neg_patches, input_ids, is_paired, attention_mask, neg_i
 
     for p in range(len_neg_inputs):
         neg_patches_sample = neg_patches[:, p, :, :]
-        embeds_neg = construct_bert_input(neg_patches_sample, input_ids, evaluator, device=device)
+        embeds_neg = construct_bert_input(neg_patches_sample, input_ids, evaluator, device=device, random_patches=random_patches)
         attention_mask_neg = F.pad(attention_mask, (0, embeds_neg.shape[1] - input_ids.shape[1]), value=1)
 
         all_embeds_neg.append(embeds_neg)
