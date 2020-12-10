@@ -115,7 +115,7 @@ class MultiModalBertDataset(Dataset):
         self.patch_size = patch_size
         self.img_size = img_size
 
-        if path_to_encoder == None:
+        if path_to_encoder_model == None:
             self.im_encoder = EncoderCNN()
         else:
             self.im_encoder = Encoder_mCNN_resnet(path_to_encoder_model)
