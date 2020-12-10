@@ -133,7 +133,7 @@ class FashionBert(transformers.BertPreTrainedModel):
             }
 
 
-def train(fashion_bert, dataset, params, device):
+def train(fashion_bert, dataset, params, device, random_patches=False):
     torch.manual_seed(0)
     train_size = int(len(dataset) * .8)
     test_size = len(dataset) - train_size
@@ -187,7 +187,7 @@ def train(fashion_bert, dataset, params, device):
             input_ids[token_mask >= 0.15] = -100
             input_ids[attention_mask == 0] = -100
 
-            embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert, device=device)
+            embeds = construct_bert_input(masked_patches, masked_input_ids, fashion_bert, device=device, random_patches=random_patches)
             # pad attention mask with 1s so model pays attention to the image parts
             attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
 
@@ -236,6 +236,7 @@ if __name__ == '__main__':
     #parser.add_argument('--path_to_images', help='Absolute path to image directory', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/v2/full')
     #parser.add_argument('--path_to_data_dict', help='Absolute path to json containing img name, sentence pair dict', default='/Users/alexschneidman/Documents/CMU/CMU/F20/777/ADARI/ADARI_furniture_pairs.json')
     parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file', default='/home/ubuntu/preprocessed_patches.pkl')
+    parser.add_argument('--random_patches', help='Whether the dataset patches are random, 1 if so, 0 if not random')
     args = parser.parse_args()
 
     params = TrainParams()
@@ -249,7 +250,7 @@ if __name__ == '__main__':
     dataset = PreprocessedADARI(args.path_to_dataset)
 
     try:
-        train(fashion_bert, dataset, params, device)
+        train(fashion_bert, dataset, params, device, args.random_patches)
     except KeyboardInterrupt:
         pass
     model_time = datetime.datetime.now().strftime("%X")

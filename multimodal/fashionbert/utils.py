@@ -21,7 +21,7 @@ def save_json(file_path, data):
     json.dump(data, out_file)
     out_file.close()
 
-def construct_bert_input(patches, input_ids, fashion_bert, device=None):
+def construct_bert_input(patches, input_ids, fashion_bert, device=None, random_patches=False):
     # patches shape: batch size, im sequence length, embedding size
     # input_ids shape: batch size, sentence length
 
@@ -32,11 +32,13 @@ def construct_bert_input(patches, input_ids, fashion_bert, device=None):
     #    position_ids=torch.arange(0, input_ids.shape[1], dtype=torch.long).to(device) * torch.ones(input_ids.shape, dtype=torch.long).to(device))
     word_embeddings = fashion_bert.bert.embeddings(input_ids.to(device))
 
-    image_position_ids = torch.arange(1, patches.shape[1]+1, dtype=torch.long).view(-1, 1) * torch.ones(patches.shape[0], dtype=torch.long)
-    image_position_ids = image_position_ids.T
+    if not random_patches:
+        image_position_ids = torch.arange(1, patches.shape[1]+1, dtype=torch.long).view(-1, 1) * torch.ones(patches.shape[0], dtype=torch.long)
+        image_position_ids = image_position_ids.T
     image_token_type_ids = torch.ones((patches.shape[0], patches.shape[1]), dtype=torch.long)
 
-    image_position_embeds = fashion_bert.bert.embeddings.position_embeddings(image_position_ids.to(device))
+    if not random_patches:
+        image_position_embeds = fashion_bert.bert.embeddings.position_embeddings(image_position_ids.to(device))
     image_token_type_embeds = fashion_bert.bert.embeddings.token_type_embeddings(image_token_type_ids.to(device))
 
     # transforms patches into batch size, im sequence length, 768
@@ -47,7 +49,10 @@ def construct_bert_input(patches, input_ids, fashion_bert, device=None):
     patches = patches.view(word_embeddings.shape[0], im_seq_len, -1)
 
     # shape: batch size, im sequence length, embedding size
-    image_embeddings = patches + image_position_embeds + image_token_type_embeds
+    if not random_patches:
+        image_embeddings = patches + image_position_embeds + image_token_type_embeds
+    else:
+        image_embeddings = patches + image_token_type_embeds
     image_embeddings = fashion_bert.im_to_embedding_norm(image_embeddings)
 
     return torch.cat((word_embeddings, image_embeddings), dim=1)
