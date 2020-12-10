@@ -47,14 +47,7 @@ class FashionbertEvaluator(transformers.BertPreTrainedModel):
                         embeds_n,    # list 
                         att_mask_n,    # list 
                         ):               
-        """
-        INPUTS:
-            input_ids     [1, 448]
-            embeds:       [1, 512, 768]
-            att_mask:     [1, 448]
-            embeds_n:     list with 100 of [1, 512, 768]
-            att_mask_n:   list with 100 of [1, 448]
-        """
+        
         # Score for positive 
         query_dict_scores = []
         query_scores = []
@@ -102,15 +95,7 @@ class FashionbertEvaluator(transformers.BertPreTrainedModel):
         return S
     
     def img2text_scores(self, input_ids_p, embeds_p, att_mask_p, input_ids_n, embeds_n, att_mask_n):
-        """
-        INPUTS:
-            input_ids_p : [1, 448]
-            embeds_p:     [1, 512, 768]
-            att_mask_p:   [1, 448]
-            input_ids_n:  list with 100 of [1, 448]
-            embeds_n:     list with 100 of [1, 512, 768]
-            att_mask_n:   list with 100 of [1, 448]
-        """
+
         # Score for positive 
         query_dict_scores = []
         query_scores = []
@@ -189,7 +174,7 @@ class FashionbertEvaluator(transformers.BertPreTrainedModel):
     def get_scores_and_metrics(
         self,
         embeds,                       # text + image embedded 
-        attention_mask,
+        attention_mask,               # text + image
         labels=None,                  # [batch, 448]
         is_paired=None,               # [batch]
         only_alignment = False,
@@ -267,7 +252,7 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     len_neg_inputs = neg_input_ids.shape[1]
     
     embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
-    attention_mask_ = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
+    attention_mask_mm = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
 
     # NEGATIVE SAMPLE # [batch, 100, 448]
     all_embeds_neg = []
@@ -290,7 +275,7 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     all_scores_query = evaluator.img2text_scores(
                 input_ids_p = input_ids,
                 embeds_p = embeds,
-                att_mask_p = attention_mask_,
+                att_mask_p = attention_mask_mm,
                 input_ids_n = all_neg_inputs,
                 embeds_n = all_embeds_neg,
                 att_mask_n = all_att_mask)
@@ -298,7 +283,7 @@ def image2text(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     # Accuracy: only in positive example
     txt_acc, alig_acc = evaluator.get_scores_and_metrics(
                         embeds,                       # text + image embedded 
-                        attention_mask_,
+                        attention_mask_mm,
                         labels=input_ids,                  # [batch, 448]
                         is_paired=is_paired,               # [batch]
                         only_alignment = False,
@@ -320,7 +305,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     
     # POSITIVE IMAGE 
     embeds = construct_bert_input(patches, input_ids, evaluator, device=device)
-    attention_mask_ = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
+    attention_mask_mm = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value = 1)
         
     # NEGATIVE SAMPLES
     all_embeds_neg = []
@@ -339,7 +324,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     all_scores_query = evaluator.text2img_scores(
                 input_ids   = input_ids,
                 embeds      = embeds,
-                att_mask    = attention_mask_,
+                att_mask    = attention_mask_mm,
                 embeds_n    = all_embeds_neg, # list
                 att_mask_n  = all_att_mask) # list
               
@@ -347,7 +332,7 @@ def text2image(i, patches, neg_patches, input_ids, is_paired, attention_mask, ne
     # Accuracy: only in positive example
     txt_acc, alig_acc = evaluator.get_scores_and_metrics(
                         embeds,                       # text + image embedded 
-                        attention_mask_,
+                        attention_mask_mm,
                         labels=input_ids,                  # [batch, 448]
                         is_paired=is_paired,               # [batch]
                         only_alignment = False,
