@@ -68,12 +68,39 @@ class EncoderCNN(torch.nn.Module):
             features = self.resnet(images)
         return features
 
+class Encoder_mCNN_resnet(torch.nn.Module):
+    """
+    Resnet152 to load weights from 11-777 midterm mCNN_V4.1 coordinated representation network
 
+    """
+    def __init__(self, path_to_pretrained):
+        """Load the pretrained ResNet50 and replace top fc layer."""
+        super(Encoder_mCNN_resnet, self).__init__()
+        self.resnet = torchvision.models.resnet152(pretrained=True)
+        num_ftrs = self.resnet.fc.in_features
+        self.resnet.fc = torch.nn.Linear(num_ftrs, 50)
+        self.load_pretrained(path_to_pretrained)
+        self.resnet.eval()
+        modules = list(self.resnet.children())[:-1]  # delete the last fc (classification) layer.
+        self.resnet_ = torch.nn.Sequential(*modules)
+
+    def load_pretrained(self, path_to_pretrained):
+        checkpoint = torch.load(path_to_pretrained, map_location=torch.device('cpu'))
+        self.resnet.load_state_dict(checkpoint['model_state_dict'])
+
+    def forward(self, images):
+        """Extract feature vectors from input images."""
+        with torch.no_grad():
+            features = self.resnet_(images)
+        return features
+    
+    
 class MultiModalBertDataset(Dataset):
     def __init__(
         self, 
         path_to_images, 
         data_dict_path,
+        path_to_encoder_model=None,
         patch_size = 8, 
         img_size = 64,
         device = None
@@ -88,7 +115,11 @@ class MultiModalBertDataset(Dataset):
         self.patch_size = patch_size
         self.img_size = img_size
 
-        self.im_encoder = EncoderCNN()
+        if path_to_encoder == None:
+            self.im_encoder = EncoderCNN()
+        else:
+            self.im_encoder = Encoder_mCNN_resnet(path_to_encoder_model)
+        
         self.im_encoder.eval()
         self.im_encoder.to(device)
         
