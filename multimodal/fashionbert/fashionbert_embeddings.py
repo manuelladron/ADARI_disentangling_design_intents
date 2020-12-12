@@ -1,27 +1,11 @@
 import torch, torchvision
-import sys
-import random
-import json
-import torch.nn as nn
-import torch.nn.functional as F
-import PIL
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
 import transformers
-from transformers import AdamW
+import torch.nn.functional as F
 from transformers import BertTokenizer, BertModel
-# from transformers.models.bert.modeling_bert import BertPreTrainingHeads
-from transformers.modeling_bert import BertPreTrainingHeads
-from utils import construct_bert_input, PreprocessedADARI_evaluation, save_json
-
-from fashionbert_model import FashionBert, FashionBertHead
+from utils import construct_bert_input, save_json
+from fashionbert_evaluator_parser import Evaluation_negpairs
 import argparse
-import datetime
-
 from tqdm import tqdm
-import numpy as np
-from IPython.display import clear_output
-
 import matplotlib.pyplot as plt
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -36,13 +20,16 @@ class FashionBert_embedder(transformers.BertPreTrainedModel):
         self.im_to_embedding_norm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.init_weights()
 
-    def embed(self, embeds, plot_hidden=False):
+    def embed(self, embeds, attention_mask, plot_hidden=False):
         
         batch_size = embeds.shape[0]
         seq_length = embeds.shape[1]
         hidden_dim = embeds.shape[2]
 
-        outputs = self.bert(inputs_embeds=embeds, return_dict=True)
+        outputs = self.bert(inputs_embeds=embeds,
+                            attention_mask = attention_mask,
+                            return_dict=True)
+
         hidden_states = outputs[2]
         
         """
@@ -83,18 +70,14 @@ class FashionBert_embedder(transformers.BertPreTrainedModel):
         return text_vec, image_vec
             
 
-def get_embeddings(dataset, save_file, num_samples= 1000, pretrained_model=None):
+def get_embeddings(dataset, save_file, pretrained_model=None, random_patches=False):
     torch.cuda.empty_cache()
     torch.manual_seed(0)    
     dataloader = torch.utils.data.DataLoader(
-        dataset, 
-        batch_size=1, 
+        dataset,
+        batch_size=1,
         shuffle=False,
-        sampler = torch.utils.data.SubsetRandomSampler(
-                    torch.randint(high=len(dataset), size=(len(dataset),))),
-        )
-        
-       
+    )
     print('dataloader len: ', len(dataloader))
     
     if pretrained_model != None:
@@ -108,19 +91,20 @@ def get_embeddings(dataset, save_file, num_samples= 1000, pretrained_model=None)
     
     fashionbert_embeds = dict()
     with torch.no_grad():
-        for i, (patches, neg_patches, input_ids, is_paired, attention_mask, neg_input_ids, neg_attention_mask, img_name) in enumerate(tqdm(dataloader)):
+        for i, (patches, _, input_ids, attention_mask, _, _, img_name) in enumerate(tqdm(dataloader)):
             input_ids = input_ids.to(device)
             patches = patches.to(device)
             
             inputs = input_ids.squeeze(0).detach().tolist()
             seq = tokenizer.convert_ids_to_tokens(inputs)
             seq = tokenizer.convert_tokens_to_string(seq)
-            embeds = construct_bert_input(patches, input_ids, embedder, device)
-            text_emb, img_emb = embedder.embed(embeds)
-            
+            embeds = construct_bert_input(patches, input_ids, embedder, device, random_patches)
+            attention_mask = F.pad(attention_mask, (0, embeds.shape[1] - input_ids.shape[1]), value=1)
+            text_emb, img_emb = embedder.embed(embeds, attention_mask)
+
             fashionbert_embeds[img_name[0]] = {'text': seq,
-                                        'text_emb': text_emb.tolist(),
-                                        'img_emb': img_emb.tolist()}
+                                               'text_emb': text_emb.tolist(),
+                                                'img_emb': img_emb.tolist()}
     
     save_json(save_file, fashionbert_embeds)
     
@@ -128,14 +112,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Get embeddings FashionBert')
     parser.add_argument('--path_to_dataset', help='Absolute path to .pkl file')
     parser.add_argument('--path_to_pretrained_model', help='Path to pretrained directory', default=None)
-    parser.add_argument('--num_samples', help='Number of samples for dataloader', default=1000)
-    parser.add_argument('--save_file_name', help='Name for file with embeddings', default='fashionbert_vanilla_adaptive.json')
+    parser.add_argument('--save_file_name', help='Name for file with embeddings', default='fashionbert_embeddings.json')
     args = parser.parse_args()
     
     print('Loading dataset...')
-    dataset = PreprocessedADARI_evaluation(args.path_to_dataset)
+    dataset = Evaluation_negpairs(args.path_to_dataset)
     print('Getting embeddings...')
-    get_embeddings(dataset, args.save_file_name, args.num_samples, args.path_to_pretrained_model)
+    get_embeddings(dataset, args.save_file_name,  args.path_to_pretrained_model, random_patches=True)
     
     
 

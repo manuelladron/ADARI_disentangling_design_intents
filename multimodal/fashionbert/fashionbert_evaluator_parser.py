@@ -1,9 +1,9 @@
 import torch, torchvision
 from torch.utils.data import Dataset, DataLoader
-import pickle
+from pickle5 import pickle
 import numpy as np
 import random
-
+from utils import EvaluationDataset
 
 class Evaluation_negpairs(Dataset):
     def __init__(self, path_to_dataset):
@@ -134,13 +134,13 @@ def get_all_paired_test_set(dataset, savefile_path, num_samples=1000):
     print('--dataset saved in: {}'.format(savefile_path))
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 
-    # print('Processing the dataset...')
-    # dataset = EvaluationDataset('../../../__fashionbert_trained/fashionbert_vanilla_adaptive/preprocessed_fashionbert_vanilla.pkl')
-    # savefile_path = '../../../__fashionbert_trained/fashionbert_vanilla_adaptive/evaluation_set_fashionbert_vanilla.pkl'
-    # print('Done!')
-    # print('\nEvaluating...')
-    # get_all_paired_test_set(dataset, savefile_path, num_samples=1000)
-    # print('Done!')
+    print('Processing the dataset...')
+    dataset = EvaluationDataset('/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/pickle_files/np_am_resft/np_am_ftresnet152_trainingset.pkl')
+    savefile_path = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/pickle_files/np_am_resft/np_am_ftresnet152_evalset.pkl'
+    print('Done!')
+    print('\nEvaluating...')
+    get_all_paired_test_set(dataset, savefile_path, num_samples=1000)
+    print('Done!')
 
