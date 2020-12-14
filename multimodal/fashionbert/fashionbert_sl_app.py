@@ -158,6 +158,7 @@ class FashionbertAtt(transformers.BertPreTrainedModel):
 
         to_pil = torchvision.transforms.ToPILImage()
         img = to_pil(img)
+        # img.save('./img_with_att_patches.png')
         st.image(img, use_column_width=True)
 
 @st.cache(allow_output_mutation=True)
@@ -329,9 +330,11 @@ def set_model(pretrained_model, sample, device, path_to_dataset):
     return viz, tokenizer, patches, input_ids, attention_mask, img_name, patch_positions
 
 # @st.cache(allow_output_mutation=True)
-def show_patches(full_image_name, indexes, positions):
+def show_patches(full_image_name, indexes, positions, img_name=None):
     to_pil = torchvision.transforms.ToPILImage()
     im = Image.open(full_image_name)
+    if img_name != None:
+        im.save('_{}_.png'.format(img_name))
     im = torchvision.transforms.Compose([
         torchvision.transforms.Resize(512),
         torchvision.transforms.CenterCrop(512),
@@ -347,6 +350,8 @@ def show_patches(full_image_name, indexes, positions):
         start_x, start_y, end_x, end_y = patches_po[id]
         patch = im[:, start_x:end_x, start_y:end_y]
         patch = to_pil(patch)
+        if img_name != None:
+            patch.save('{}_patch_{}.png'.format(img_name, i))
         all_patches.append(patch)
     st.image(all_patches, use_column_width=False)
 
@@ -428,7 +433,7 @@ def test(path_to_dataset, sample, device, slider_att, slider_head, pretrained_mo
         create_barchart_h(att_max_t_v, labels2, adj, 'Attention weights of the top 10 words', topk=True)
 
     st.subheader('Top-10 Attention Patches')
-    show_patches(image_name, att_max_i, patch_positions)
+    show_patches(image_name, att_max_i, patch_positions, None)
     t = highlight_and_bold(nopad_string, adj, adj_occ)
     st.subheader('Design Description')
     st.markdown(t, unsafe_allow_html=True)
@@ -441,7 +446,7 @@ def test(path_to_dataset, sample, device, slider_att, slider_head, pretrained_mo
 
 def main():
     # Set up layout
-    max_width = 1300
+    max_width = 1200
     padding_top = 0
     padding_right = 0
     padding_left = 0
@@ -476,10 +481,12 @@ def main():
     sample = st.sidebar.selectbox('Choose sample', samples)
 
     # Path to models and data
-    dataset_path = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/pickle_files/rp_am_resft/rp_am_ftres152_evalset.pkl'
-    # dataset_path = '../__fashionbert_trained/pickle_files/np_nm_res50/evaluation_set_fashionbert_vanilla.pkl'
-    # model_path = '../__fashionbert_trained/fashionbert_np_nm_10epochs/'
-    model_path = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/fashionbert_07:33:58_rp_am_10e_manuel/'
+    # dataset_path2 = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/pickle_files/rp_nm_res50/rp_nm_res50_eval_dataset.pkl'
+    dataset_path = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/pickle_files/np_nm_res50/evaluation_set_fashionbert_vanilla.pkl'
+    model_path = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/fashionbert_np_nm_10epochs/'
+    # model_path2 = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/fashionbert_np_nm_10epochs'
+
+    # model_path = '/Users/manuelladron/iCloud_archive/Documents/_CMU/PHD-CD/PHD-CD_Research/github/__fashionbert_trained/fashionbert_07:33:58_rp_am_10e_manuel/'
 
     # Run app
     test(dataset_path, sample, device, att_layer, att_head, model_path)
