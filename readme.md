@@ -57,7 +57,7 @@ To our knowledge, our work is the first attempt to scale work on high-level attr
 In this section we succinctly explain how the BERT language model works, then we describe how we extract image features and how we build our multimodal version of BERT. Finally we explain how our model learns to disentangle design intents. 
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/adaribert_architecture_adjs.png">
+  <img width="70%"   src="./media/final/adaribert_att_adjs.png">
   <p style="font-size:10px"> Figure 3. Our ADARIBERT framework </p>
 </div>
 
