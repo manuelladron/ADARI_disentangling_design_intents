@@ -6,6 +6,12 @@ Repo for the course 11-777 Multimodal Machine Learning, at Carnegie Mellon Unive
 Language is ambiguous; many terms and expressions convey the same idea. This is specially true in creative practice, where design intents —high-level descriptions— correspond to conceptual ideas in the process of design. Words such as \textit{organic} or structures such as *we made the furniture layering materials like "a bird weaving its nest"* are design intents. These are highly entangled within objects in images, and are more complex to detect than objects and stylistic attributes. Furthermore, we work with unstructured natural conversations about design objects, which normally include rejections, negations and contextual information about the designer's philosophy that can be vaguely applied to the objects we see in images. Current machine learning models are unable to disentangle such complex relationships. In an attempt to break this ground, we explore this problem working on the ADARI—Ambiguous Design and Artistic Images— dataset. Building off of the FashionBERT architecture, we propose ADARIBERT, a framework for disentangling design intents. We examine a number of directions in an effort to ground design descriptions in design images. We formulate this grounding in several tasks including image-description alignment and cross-modal retrieval. 
 
 ## Introduction
+
+<div  align="center">   
+  <img width="70%"   src="./media/adari_datasample.png">
+  <p style="font-size:10px">Figure 1. Complex relationships between modalities in a sample from ADARI Furniture dataset. </p>
+</div>
+
 Language can be ambiguous and similar ideas can be expressed in many different expressions. This is specially true in design fields, where conceptual ideas are generally described by high-level, qualitative attributes, called design intents. Even though these descriptors are highly used in everyday language by designers—"the dinning table should look more organic", "this chair is lightweight and minimal"—, they have complex visual associations due to a partial subjective and conceptual components and thus, finding visual representations is a challenge. While humans might be able to identify design intents from an image of a chair with attributes such as organic or minimalist, and differentiate between a heavyweight and a lightweight stand-lamp, they might also face challenges differentiating design intents such as dynamic, organic or functional. Current machine learning literature is unable to recognize this type of high-level attributes, but has potential to understand them. Resolving such task would have a major impact in design communities, opening new scenarios where natural human language could directly be used in the process of design. 
 
 For computational linguistics, resolving this problem can challenge the status of theoretical understanding, problem-solving methods and evaluation techniques [8]. For computer vision, this presents a complex challenge of disentangling qualitative attributes—sleek, elegant, minimal—from images. Beyond its relevance in pushing machine learning research boundaries, this would significantly impact creative practice —designers, architects and engineers. Real-time design intents understanding could open new design scenarios (e.g. voice-assisted natural language input), that reduce procedures based on intent reinterpretation as imperative commands —move, circle, radius, extrude, vertical— required by digital design engines. 
@@ -41,7 +47,7 @@ This last work is most related to our research, and we extend it to ADARI. The F
 Preliminary explorations that visually disambiguate vague terms in the context of design have been done by \cite{Ladrondeguevara2020multimodal}. The authors use a multimodal approach that combines a pretrained convolutional neural network, ResNet-152 \cite{resnet}, to get the representation for images with general word indexes into a common joint subspace. A bidirectional Long Short-Term Memory (biLSTM) decoder—which models the labels co-occurrence information—learns semantic relationships between words and images. Early results are positive and encouraging for several reasons: the baseline presented is able to detect design nuances in the images that relate to ambiguous words such as “curvaceous”, “wobbly”, “linear”, or “slouchy”, where none of the corresponding images necessarily had those labels applied in the ground truth (see Figure \ref{pred}). This is an indication of a potential approach for understanding ambiguous terms through associations of words-images. 
 
 <div  align="center">   
-  <img width="70%"   src="./media/predicted_labels_only3.png">
+  <img width="50%"   src="./media/final/predicted_labels_only3.png">
   <p style="font-size:10px">Figure 2. Visual language semantic relations. </p>
 </div>
 
@@ -51,7 +57,7 @@ To our knowledge, our work is the first attempt to scale work on high-level attr
 In this section we succinctly explain how the BERT language model works, then we describe how we extract image features and how we build our multimodal version of BERT. Finally we explain how our model learns to disentangle design intents. 
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/adaribert_architecture_adjs.pdf">
+  <img width="70%"   src="./media/final/adaribert_architecture_adjs.png">
   <p style="font-size:10px"> Figure 3. Our ADARIBERT framework </p>
 </div>
 
@@ -99,7 +105,7 @@ To address the issue of disentangling design intents in the context of creative 
 For all the experiments shown in this paper, we work with the *Furniture* domain within the ADARI dataset, and we use word modality for all our experiments. The Furniture-ADARI dataset contains $17,532$ images of contemporary workpieces.
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/normal_vs_patches.png">
+  <img width="50%"   src="./media/final/normal_vs_patches.png">
   <p style="font-size:10px"> Figure 4. Ten highest attention weights for the query word \textit{flat} on normal patches (left) and random patches (right). Attention layer: 5, attention head: 2 </p>
 </div>
 
@@ -125,7 +131,7 @@ For text-patch alignment and token prediction, we employ accuracy as a metric to
 We compare our four main experiments. The notation for our ablation studies is as follows: our baseline is defined by equal or normal —used interchangeably— patches and normal masking (NPNM), and it is compared against random patches and normal masking (RPNM), equal patches and adjective masking (NPAM), and random patches and adjective masking (RPAM). We also test a variant of the adjective masking approach which enforces image-attention only every 100 iterations of training, and we illustrate how it affects the training performance (see Appendix, Figure \ref{adaptive} and \ref{fig:losses}). We show a comparison between NPNM and RPAM approaches on the three training objectives losses and performance of the adaptive loss in Figure \ref{npnm_rpam}.
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/ADARIBERT_accs.png">
+  <img width="50%"   src="./media/final/ADARIBERT_accs.png">
   <p style="font-size:10px"> Figure 5. Masked Token Prediction and Text Patch Alignment Accuracies </p>
 </div>
 
@@ -134,7 +140,7 @@ We compare our four main experiments. The notation for our ablation studies is a
 In the alignment task, however, the slicing approach has a significant impact. We see how our baseline outperforms the rest of the ablative experiments with a $73.80\%$ accuracy. The equal patches approach is very superior to the random patches approach. RPNM performs near to random guessing with a $53.20\%$ accuracy, while that RPAM vastly underperforms a random classifier with a $0.8\%$ accuracy. A reason for such low performance of the random patch scheme is that random patches do not assure covering the entire distribution of the pixels in the images, contrary to the equal patch strategy. The random patches might be scattered about a noisy background, providing a weak signal. 
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/table1.png">
+  <img width="50%"   src="./media/final/table1.png">
   <p style="font-size:10px"> Table 1. Cross-modal retrieval on ADARIBERT </p>
 </div>
 
@@ -143,15 +149,15 @@ In the alignment task, however, the slicing approach has a significant impact. W
 Despite relatively uninspiring performance under some of our metrics, ADARIBERT produces promising qualitative results in comparison to other multimodal baselines. See the appendix for details.
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/NPNM_RPAM.png">
+  <img width="40%"   src="./media/final/NPNM_RPAM.png">
   <p style="font-size:10px"> Figure 6. Training losses comparison between equal patch normal mask (NPNM) and random patch adjective mask (RPAM) </p>
 </div>
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/ablation losses/MLM.png">
-  <img width="70%"   src="./media/final/ablation losses/MPM.png">
-  <img width="70%"   src="./media/final/ablation losses/ALIG.png">
-  <img width="70%"   src="./media/final/ablation losses/Adaptive_loss.png">
+  <img width="40%"   src="./media/final/ablation losses/MLM.png">
+  <img width="40%"   src="./media/final/ablation losses/MPM.png">
+  <img width="40%"   src="./media/final/ablation losses/ALIG.png">
+  <img width="40%"   src="./media/final/ablation losses/Adaptive_loss.png">
   <p style="font-size:10px"> Figure 7. Comparison of the 3 main training objective losses and the adaptive loss across 4 experiments: equal patches with normal masking (np\_nm), random patches with adjective masking (rp\_am), random patches with adjective masking and image-attention only every 100 iterations (rp\_am\_IMG-ATT), and equal patches with adjective masking (np\_am). </p>
 </div>
 
@@ -166,7 +172,7 @@ A challenging and unique aspect of ADARI is the descriptions are from long-form 
 #### Grounding: What ADARIBERT Learns
 
 <div  align="center">   
-  <img width="70%"   src="./media/final/vis_all.pdf">
+  <img width="70%"   src="./media/final/vis_all.png">
   <p style="font-size:10px"> Figure 8. ADARIBERT Visualizer app. Sample num.162, language token *curves* </p>
 </div>
 
