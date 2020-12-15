@@ -8,11 +8,6 @@ Language is ambiguous; many terms and expressions convey the same idea. This is 
 ## Introduction
 Language can be ambiguous and similar ideas can be expressed in many different expressions. This is specially true in design fields, where conceptual ideas are generally described by high-level, qualitative attributes, called design intents. Even though these descriptors are highly used in everyday language by designers—"the dinning table should look more organic", "this chair is lightweight and minimal"—, they have complex visual associations due to a partial subjective and conceptual components and thus, finding visual representations is a challenge. While humans might be able to identify design intents from an image of a chair with attributes such as organic or minimalist, and differentiate between a heavyweight and a lightweight stand-lamp, they might also face challenges differentiating design intents such as dynamic, organic or functional. Current machine learning literature is unable to recognize this type of high-level attributes, but has potential to understand them. Resolving such task would have a major impact in design communities, opening new scenarios where natural human language could directly be used in the process of design. 
 
-<div  align="center">   
-  <img width="70%"   src="./media/adari_datasample.png">
-  <p style="font-size:10px"> Figure 1. Complex relationships between modalities in a sample from ADARI Furniture dataset </p>
-</div>
-
 For computational linguistics, resolving this problem can challenge the status of theoretical understanding, problem-solving methods and evaluation techniques [8]. For computer vision, this presents a complex challenge of disentangling qualitative attributes—sleek, elegant, minimal—from images. Beyond its relevance in pushing machine learning research boundaries, this would significantly impact creative practice —designers, architects and engineers. Real-time design intents understanding could open new design scenarios (e.g. voice-assisted natural language input), that reduce procedures based on intent reinterpretation as imperative commands —move, circle, radius, extrude, vertical— required by digital design engines. 
 
 Research on identifying high-level attributes has been done in other tasks. For instance, for selecting font types using attributes by \cite{odonovan:2014:font}, or for search tasks on fashion objects with relative attribute feedback by \cite{whittlesearch}. Even this work is very related to our work, they focus on other searching strategies and not necessarily cross-modal retrieval, and their attributes are generally based on single adjectives.
@@ -54,6 +49,12 @@ To our knowledge, our work is the first attempt to scale work on high-level attr
 
 ### Proposed Approach 
 In this section we succinctly explain how the BERT language model works, then we describe how we extract image features and how we build our multimodal version of BERT. Finally we explain how our model learns to disentangle design intents. 
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/adaribert_architecture_adjs.pdf">
+  <p style="font-size:10px"> Figure 3. Our ADARIBERT framework </p>
+</div>
+
 
 #### BERT
 The BERT model was introduced by \cite{devlin2018bert}, and uses the transformer architecture \cite{vaswani2017attention} with a word-piece \cite{wu2016wordpiece} approach that divides words into tokens to be fed into the model. Every subword is projected into a set of embeddings $E$, and each embedding $e\in E$ is computed as a sum of token embedding particular to each subword, segment embedding which indicates the part of the text that comes from, and position embedding that encodes the position of the token. This is fed into the multilayer BERT transformer, which generally has 12 or 24 layers, and outputs contextualized representations of each token. 
@@ -97,6 +98,11 @@ To address the issue of disentangling design intents in the context of creative 
 
 For all the experiments shown in this paper, we work with the *Furniture* domain within the ADARI dataset, and we use word modality for all our experiments. The Furniture-ADARI dataset contains $17,532$ images of contemporary workpieces.
 
+<div  align="center">   
+  <img width="70%"   src="./media/final/normal_vs_patches.png">
+  <p style="font-size:10px"> Figure 4. Ten highest attention weights for the query word \textit{flat} on normal patches (left) and random patches (right). Attention layer: 5, attention head: 2 </p>
+</div>
+
 #### Multimodal Baseline Models 
 We test 4 main experiments and provide a series of ablation studies to compare their performance. Namely, these experiments are: 
 
@@ -118,14 +124,36 @@ For text-patch alignment and token prediction, we employ accuracy as a metric to
 ### Results and Discussion
 We compare our four main experiments. The notation for our ablation studies is as follows: our baseline is defined by equal or normal —used interchangeably— patches and normal masking (NPNM), and it is compared against random patches and normal masking (RPNM), equal patches and adjective masking (NPAM), and random patches and adjective masking (RPAM). We also test a variant of the adjective masking approach which enforces image-attention only every 100 iterations of training, and we illustrate how it affects the training performance (see Appendix, Figure \ref{adaptive} and \ref{fig:losses}). We show a comparison between NPNM and RPAM approaches on the three training objectives losses and performance of the adaptive loss in Figure \ref{npnm_rpam}.
 
+<div  align="center">   
+  <img width="70%"   src="./media/final/ADARIBERT_accs.png">
+  <p style="font-size:10px"> Figure 5. Masked Token Prediction and Text Patch Alignment Accuracies </p>
+</div>
 
-**Masked Language Token Prediction and Alignment Tasks.** We measure the performance of our models with the accuracy metric, as seen in Figure \ref{adaribert_acc}. We observe that for masked token prediction, slicing the image into equal patches yields slightly better results than using the random patches approach. Our best performing model in this task is our baseline (NPNM) with an accuracy of $73.15\%$ followed very closely by NPAM with $73.10\%$ accuracy. Likewise, the random patches approach yields almost same performance. We hypothesize that for predicting masked language tokens, the model is agnostic to the vision modality, ignoring the slicing approach. This might be due to the imbalance in the sequence length of the two modalities, or that the attention mechanism is not as strong in the vision modality as it is in the language part. We observe that the fact that skewing the masking towards adjectives and masking from an uniform distribution across the text sequence does not impact significantly in the performance of the language token prediction task. 
+**Masked Language Token Prediction and Alignment Tasks.** We measure the performance of our models with the accuracy metric, as seen in Figure 5. We observe that for masked token prediction, slicing the image into equal patches yields slightly better results than using the random patches approach. Our best performing model in this task is our baseline (NPNM) with an accuracy of $73.15\%$ followed very closely by NPAM with $73.10\%$ accuracy. Likewise, the random patches approach yields almost same performance. We hypothesize that for predicting masked language tokens, the model is agnostic to the vision modality, ignoring the slicing approach. This might be due to the imbalance in the sequence length of the two modalities, or that the attention mechanism is not as strong in the vision modality as it is in the language part. We observe that the fact that skewing the masking towards adjectives and masking from an uniform distribution across the text sequence does not impact significantly in the performance of the language token prediction task. 
 
 In the alignment task, however, the slicing approach has a significant impact. We see how our baseline outperforms the rest of the ablative experiments with a $73.80\%$ accuracy. The equal patches approach is very superior to the random patches approach. RPNM performs near to random guessing with a $53.20\%$ accuracy, while that RPAM vastly underperforms a random classifier with a $0.8\%$ accuracy. A reason for such low performance of the random patch scheme is that random patches do not assure covering the entire distribution of the pixels in the images, contrary to the equal patch strategy. The random patches might be scattered about a noisy background, providing a weak signal. 
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/table1.png">
+  <p style="font-size:10px"> Table 1. Cross-modal retrieval on ADARIBERT </p>
+</div>
 
 **Cross-modal Retrieval.** We observe that our best performing strategy on cross-modal retrieval in both image-to-text and text-to-image tasks is RPNM. In general, the percentage of correctly retrieved samples is low, and our four ablative schemes behave similarly, with no significant difference among them. When $K=5$, RPNM correctly retrieves 5% of the time, whereas at $K=10$, RPNM retrieves the correct match 10% of the times, as shown in Table \ref{ADARIBERTretrieval_stats}. These results are highly far off from SOTA cross-modal performance in similar multimodal transformer models. We hypothesize that this is due to the long and noisy input text the ADARI dataset has. The average sequence length of the text modality in the subset of 1000 samples in the test set is 338 tokens. Due to resource limits, we have not evaluated human performance on this task. However, we hypothesize that human performance would be significantly lower in comparison to the results from our models. See Appendix to check the complexity of this task in our dataset. 
 
 Despite relatively uninspiring performance under some of our metrics, ADARIBERT produces promising qualitative results in comparison to other multimodal baselines. See the appendix for details.
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/NPNM_RPAM.png">
+  <p style="font-size:10px"> Figure 6. Training losses comparison between equal patch normal mask (NPNM) and random patch adjective mask (RPAM) </p>
+</div>
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/ablation losses/MLM.png">
+  <img width="70%"   src="./media/final/ablation losses/MPM.png">
+  <img width="70%"   src="./media/final/ablation losses/ALIG.png">
+  <img width="70%"   src="./media/final/ablation losses/Adaptive_loss.png">
+  <p style="font-size:10px"> Figure 7. Comparison of the 3 main training objective losses and the adaptive loss across 4 experiments: equal patches with normal masking (np\_nm), random patches with adjective masking (rp\_am), random patches with adjective masking and image-attention only every 100 iterations (rp\_am\_IMG-ATT), and equal patches with adjective masking (np\_am). </p>
+</div>
 
 ### Conclusion and Future Directions
 We have developed a transformer-based model called ADARIBERT, a joint model for image and text descriptions to address two main tasks: grounding design intents in images under an object-agnostic approach, and finding the meaningful parts of the lengthy and noisy text leveraging the use of the attention mechanisms. We have introduced two main novel strategies in the multimodal transformer: a random patch strategy, which differs from common region of interests approaches based on object detectors in a step further of destroying the object, and an adjective masking approach that captures keywords in design intents. We also introduced the notion of image-attention only, which happens every 100 iterations during training, and that responds to the hypothesis of letting the set of patches predict the language masked tokens without the help of the language context. We have run a series of ablative experiments with overall unsuccessful results. Finally, we have built an app that visualizes what the ADARIBERT model has learnt through the attention weights, see Appendix in section \ref{appen}. 
@@ -136,7 +164,18 @@ A challenging and unique aspect of ADARI is the descriptions are from long-form 
 
 ### Apendix
 #### Grounding: What ADARIBERT Learns
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/vis_all.pdf">
+  <p style="font-size:10px"> Figure 8. ADARIBERT Visualizer app. Sample num.162, language token *curves* </p>
+</div>
+
 To meaningfully understand our ablation studies and visualize what the attention mechanisms actually learn, we have built an app that visualizes the attention mechanisms inter- and intra-modality, see figure \ref{viz}. This tool helps us to manually inspect how grounding is being performed by our models. The user can choose a sample from a subset of 1,000 samples from the test set. Once the sample is chosen, the app updates the visualization of the attention weights in real time. The user can select whether to pick a word from only adjectives or from the entire input sequence. Likewise, attention layers and attention heads are also parameters. The visualizer shows the 10 patches that receive the highest attention, colouring from bright red to white indicates higher to lower attention. We also show the attention of the 20 surrounding words around the query word, and the top 10 words that receive the highest attention within the entire sequence. To isolate the patch from the object, we also display the 10 patches by order of attention. We also highlight the selected word in bold in context of the subsentence, highlighted in yellow, within sequence. Finally we show a graph with the attention weights for the entire 448 tokens length text sequence. Two conclusions can be withdrawn after manually exploring the dataset with this tool. Firstly, the combination of the attention layer and attention head is inconsistent across the datasamples. Deeper layers generally work better as they capture more high-level features from the text and patches, but attention heads don't seem to follow any clear pattern. Lastly, we see that the equal patches work slightly better than random patches. This is due to the fact that equal patches assure the covering of the 100% of the pixels in the image, while that is not the case with our random patches approach.
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/free.png">
+  <p style="font-size:10px"> Figure 9. ADARIBERT Visualizer app. Sample num.23, language token *free* </p>
+</div>
 
 Despite the poor perfomance of our models in the evaluated tasks, the visualizer reveals meaningful interaction between the two modalities. This is still far from the main objective of the research, which is to visually encapsulate design intents. However, while the majority of design intents are not captured by this system, some design intents that describe objects in a quantifiable manner are indeed captured by the model. As wee see in Figure \ref{viz}, that particular combination of attention layer and head yields a meaningful attention scenario between the word *curves* and the patches([^cuquilla])
 
@@ -144,6 +183,17 @@ Despite the poor perfomance of our models in the evaluated tasks, the visualizer
 
 Figure \ref{black} shows how the model reacts to the word *black*. This particular combination of attention layers and heads focuses on black patches, rather than focusing on background or on the green couch. Likewise, Figure \ref{free} illustrates the attention of the design intent *free*. While this design intent is quite conceptual and it is arguably difficult to represent, it does signal to those patches that are visual representatives of the word *free*. In design, this word is the opposite of a rigid, or "boxy" design. The four patches that receive more attention are those that encapsulate some curves and flexible turns in the shape of the chair.  
 
+<div  align="center">   
+  <img width="70%"   src="./media/final/black.png">
+  <p style="font-size:10px"> Figure 10. ADARIBERT Visualizer app. Sample num.23, language token *black* </p>
+</div>
+
+
 #### Retrieval
 The discouraging performance shown by our model in cross-modal retrieval is partially due to the unordered text descriptions of the ADARI dataset. Descriptions are long, and naturally complex as these are not annotations. They are paragraphs extracted from design reports that are based on interviews and conversations between a reporter and a designer. Natural to this type of data, we find rejections, negations and contextual information that make the relationship with the image modality blurry. Figure \ref{retri} show an example of this. We encode the images averaging the 64 patches of the second to last hidden layer of our ADARIBERT model. We see how the first two images of the image actually belong to the same datasample and share the same description. 
+
+<div  align="center">   
+  <img width="70%"   src="./media/final/retrieval.png">
+  <p style="font-size:10px"> Figure 11. Image retrieval on the ADARI dataset. The image at the left is the query and the rest of the images to the right are the closest neighbors. Coloured frames associate images with their descriptions. </p>
+</div>
 
